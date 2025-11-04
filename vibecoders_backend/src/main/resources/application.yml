@@ -1,11 +1,13 @@
 server:
   port: 8090
+  servlet:
+    context-path: /api
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/hackathon_db
-    username: postgres
-    password: vibecoders
+    url: jdbc:postgresql://localhost:5433/${DB_NAME:hackathon_db}?currentSchema=public&createDatabaseIfNotExist=true
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:devpostgre}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:
@@ -16,3 +18,19 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
 
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+# self-defined configs
+openapi:
+  services:
+    api-docs: api-docs
+    server: http://localhost:${server.port}
+    title: Chat App APIs
+    version: 1.0.0
+    license:
+      name: Apache 2.0
+      url: https://springdoc.org
