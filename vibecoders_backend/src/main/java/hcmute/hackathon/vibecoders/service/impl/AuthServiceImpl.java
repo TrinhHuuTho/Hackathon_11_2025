@@ -6,7 +6,9 @@ import hcmute.hackathon.vibecoders.dto.request.LoginRequestDto;
 import hcmute.hackathon.vibecoders.dto.request.SignupRequestDto;
 import hcmute.hackathon.vibecoders.dto.response.LoginResponseDto;
 import hcmute.hackathon.vibecoders.entity.CustomUserDetail;
+import hcmute.hackathon.vibecoders.entity.User;
 import hcmute.hackathon.vibecoders.exception.CustomException;
+import hcmute.hackathon.vibecoders.repository.UserRepository;
 import hcmute.hackathon.vibecoders.service.IAuthService;
 import hcmute.hackathon.vibecoders.service.IUserService;
 import hcmute.hackathon.vibecoders.util.Enum.Role;
@@ -33,10 +35,20 @@ public class AuthServiceImpl implements IAuthService {
     private final AuthenticationManagerBuilder authenticationManagerBuilder;
     private final SecurityUtil securityUtil;
     private final JwtConfig jwtConfig;
+    private final UserRepository userRepository;
 
     @Override
     public boolean register(SignupRequestDto signupRequestDto) {
-        userService.registerUser(signupRequestDto);
+        User user = userRepository.findByEmail(signupRequestDto.getEmail())
+                .orElse(null);
+        if (user != null) {
+            throw new CustomException("Email is already in use", HttpStatus.BAD_REQUEST);
+        }
+
+        user.setFullName(signupRequestDto.getFullName());
+        user.setEmail(signupRequestDto.getEmail());
+        user.setPassword(signupRequestDto.getPassword());
+        userRepository.save(user);
         return true;
     }
 
