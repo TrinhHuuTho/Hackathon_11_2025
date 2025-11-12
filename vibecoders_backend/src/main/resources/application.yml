@@ -2,8 +2,11 @@ server:
   port: 8090
 
 spring:
+#  data:
+#    mongodb:
+#      uri: mongodb+srv://${MONGO_DB_USERNAME}:${MONGO_DB_PASSWORD}@hackathon.j7qkfrw.mongodb.net/?appName=Hackathon
   datasource:
-    url: jdbc:postgresql://localhost:5432/${DB_NAME:hackathon_db}?currentSchema=public&createDatabaseIfNotExist=true
+    url: jdbc:postgresql://localhost:5433/${DB_NAME:hackathon_db}?currentSchema=public&createDatabaseIfNotExist=true
     username: ${DB_USER:postgres}
     password: ${DB_PASSWORD:devpostgre}
     driver-class-name: org.postgresql.Driver
