@@ -2,8 +2,8 @@ package hcmute.hackathon.vibecoders.config;
 
 
 import hcmute.hackathon.vibecoders.entity.CustomUserDetail;
-import hcmute.hackathon.vibecoders.entity.UserModel;
-import hcmute.hackathon.vibecoders.repository.IUserRepository;
+import hcmute.hackathon.vibecoders.entity.User;
+import hcmute.hackathon.vibecoders.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -16,11 +16,11 @@ import java.util.Collections;
 @Component
 @RequiredArgsConstructor
 public class UserDetailsServiceCustom implements UserDetailsService {
-    private final IUserRepository userRepository;
+    private final UserRepository userRepository;
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        UserModel userModel = userRepository.getUserByEmail(email);
+        User userModel = userRepository.getUserByEmail(email);
 
         if (userModel == null) {
             System.out.println("User not found");
@@ -31,7 +31,7 @@ public class UserDetailsServiceCustom implements UserDetailsService {
                 userModel.getEmail(),
                 userModel.getPassword(),
                 Collections.singletonList(authority),
-                userModel.getUsername()
+                userModel.getFullName()
         );
     }
 }

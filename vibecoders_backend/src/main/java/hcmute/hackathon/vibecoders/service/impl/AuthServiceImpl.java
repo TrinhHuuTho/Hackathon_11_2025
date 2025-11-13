@@ -40,15 +40,18 @@ public class AuthServiceImpl implements IAuthService {
     @Override
     public boolean register(SignupRequestDto signupRequestDto) {
         User user = userRepository.findByEmail(signupRequestDto.getEmail())
-                .orElse(null);
-        if (user != null) {
+                .orElse(new User());
+
+        if (user.getId() != null) {
             throw new CustomException("Email is already in use", HttpStatus.BAD_REQUEST);
         }
 
         user.setFullName(signupRequestDto.getFullName());
         user.setEmail(signupRequestDto.getEmail());
         user.setPassword(signupRequestDto.getPassword());
+        user.setRole(Role.USER);
         userRepository.save(user);
+
         return true;
     }
 

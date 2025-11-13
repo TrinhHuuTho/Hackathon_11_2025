@@ -11,5 +11,7 @@ import java.util.Optional;
 public interface UserRepository extends MongoRepository<User, String> {
     boolean existsByEmail(String email);
 
-    Optional<User> findByEmail(@Email(message = "Email invalid format") @NotBlank(message = "Email must be not blank") @NotNull String email);
+    Optional<User> findByEmail(String email);
+
+    User getUserByEmail(String email);
 }

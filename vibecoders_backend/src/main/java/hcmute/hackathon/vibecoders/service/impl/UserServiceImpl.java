@@ -1,10 +1,8 @@
 package hcmute.hackathon.vibecoders.service.impl;
 
-import hcmute.hackathon.vibecoders.dto.UserDto;
-import hcmute.hackathon.vibecoders.dto.request.RegisterRequest;
 import hcmute.hackathon.vibecoders.dto.request.SignupRequestDto;
-import hcmute.hackathon.vibecoders.entity.UserModel;
-import hcmute.hackathon.vibecoders.repository.IUserRepository;
+import hcmute.hackathon.vibecoders.entity.User;
+import hcmute.hackathon.vibecoders.repository.UserRepository;
 import hcmute.hackathon.vibecoders.service.IUserService;
 import hcmute.hackathon.vibecoders.util.Enum.Role;
 import lombok.RequiredArgsConstructor;
@@ -18,11 +16,11 @@ import java.text.MessageFormat;
 @RequiredArgsConstructor
 @Slf4j
 public class UserServiceImpl implements IUserService {
-    private final IUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final UserRepository userRepository;
     public String registerUser(SignupRequestDto signupRequestDto) {
-        UserModel userModel = UserModel.builder()
-                .username(signupRequestDto.getFullName())
+        User userModel = User.builder()
+                .fullName(signupRequestDto.getFullName())
                 .isActive(true)
                 .email(signupRequestDto.getEmail())
                 .password(signupRequestDto.getPassword())
@@ -34,7 +32,7 @@ public class UserServiceImpl implements IUserService {
         userModel.setActive(true);
         userRepository.save(userModel);
 
-        String result = MessageFormat.format("Add {0}-{1} successfully", userModel.getUserId(), userModel.getRole().toString());
+        String result = MessageFormat.format("Add {0}-{1} successfully", userModel.getId(), userModel.getRole().toString());
         log.info(result);
         return result;
     }
