@@ -13,6 +13,7 @@ import hcmute.hackathon.vibecoders.service.IAuthService;
 import hcmute.hackathon.vibecoders.service.IUserService;
 import hcmute.hackathon.vibecoders.util.Enum.Role;
 import hcmute.hackathon.vibecoders.util.SecurityUtil;
+import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -20,6 +21,7 @@ import org.springframework.security.config.annotation.authentication.builders.Au
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
@@ -30,8 +32,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements IAuthService {
-    private final IUserService userService;
-//    private final UserMapper userMapper;
+
+    private final PasswordEncoder passwordEncoder;
     private final AuthenticationManagerBuilder authenticationManagerBuilder;
     private final SecurityUtil securityUtil;
     private final JwtConfig jwtConfig;
@@ -48,7 +50,7 @@ public class AuthServiceImpl implements IAuthService {
 
         user.setFullName(signupRequestDto.getFullName());
         user.setEmail(signupRequestDto.getEmail());
-        user.setPassword(signupRequestDto.getPassword());
+        user.setPassword(passwordEncoder.encode(signupRequestDto.getPassword()));
         user.setRole(Role.USER);
         userRepository.save(user);
 
@@ -84,7 +86,21 @@ public class AuthServiceImpl implements IAuthService {
 
         String accessToken = securityUtil.createToken(authentication);
         String refreshToken = securityUtil.createRefreshToken(authentication);
-        return new LoginResponseDto(accessToken, refreshToken);
 
+        User user = userRepository.findByEmail(loginDTO.getEmail())
+                .orElseThrow(()->new CustomException("Cant Find User",HttpStatus.BAD_REQUEST));
+        UserDto userDto = UserDto.builder().userId(user.getId()).userName(user.getFullName()).email(user.getEmail()).build();
+        return new LoginResponseDto(accessToken, refreshToken,userDto);
+
+    }
+
+    @Override
+    public UserDto getProfile(String accessToken) {
+        String token = accessToken.replace("Bearer ", "");
+        var jwt = jwtConfig.decodeToken(token);
+        String email = jwt.getClaim("email");
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(()->new CustomException("Cant Find User",HttpStatus.BAD_REQUEST));
+        return UserDto.builder().userId(user.getId()).userName(user.getFullName()).email(user.getEmail()).build();
     }
 }

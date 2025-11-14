@@ -1,41 +1,60 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { useEffect, useState } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom'; // Thêm useLocation
+import { useAuth } from '../contexts/AuthContext';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
 import { toast } from 'sonner';
-import { Mail, Lock, Chrome } from 'lucide-react';
+import { Mail, Lock } from 'lucide-react';
+import { ClipLoader } from 'react-spinners';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, loginWithGoogle, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, isLoading } = useAuth(); 
   const navigate = useNavigate();
+  const location = useLocation(); // 2. Lấy location
+  
+  const from = location.state?.from?.pathname || "/"; 
 
-  if (isAuthenticated) {
-    navigate('/');
-    return null;
-  }
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, from]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
       toast.error('Vui lòng nhập đầy đủ thông tin');
       return;
     }
-    login(email, password);
-    toast.success('Đăng nhập thành công!');
-    navigate('/');
+
+    try {
+      await login(email, password);
+      toast.success('Đăng nhập thành công!');
+    } catch (error: any) {
+      toast.error(error?.message || 'Đăng nhập thất bại');
+    }
   };
 
-  const handleGoogleLogin = () => {
-    loginWithGoogle();
-    toast.success('Đăng nhập với Google thành công!');
-    navigate('/');
-  };
+  if (isLoading) {
+    return (
+      <div
+          style={{
+            position: "fixed",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+          }}
+        >
+         <ClipLoader size={50} color="#4F46E5" />
+        </div>
+    );
+  }
 
+  // Nếu không loading VÀ không auth, mới hiển thị form
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 via-background to-secondary/20 p-4">
       <Card className="w-full max-w-md">
@@ -98,16 +117,7 @@ export default function Login() {
               </span>
             </div>
           </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={handleGoogleLogin}
-          >
-            <Chrome className="mr-2 h-4 w-4" />
-            Đăng nhập với Google
-          </Button>
+          {/* Bạn có thể thêm các nút đăng nhập social ở đây */}
         </CardContent>
         <CardFooter className="flex justify-center">
           <p className="text-sm text-muted-foreground">

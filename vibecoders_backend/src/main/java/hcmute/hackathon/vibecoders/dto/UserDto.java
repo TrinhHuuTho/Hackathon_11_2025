@@ -12,7 +12,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class UserDto {
-    private Long userId;
+    private String userId;
     private String userName;
     private String email;
     private String password;

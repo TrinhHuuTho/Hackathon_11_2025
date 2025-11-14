@@ -15,7 +15,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import NotFound from "./pages/NotFound";
-
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -34,32 +34,67 @@ const App = () => (
                 <BMICalculatorPage />
               </Layout>
             } />
-            <Route path="/dashboard" element={
-              <Layout>
-                <DashboardPage />
-              </Layout>
-            } />
-            <Route path="/workout-tracker" element={
-              <Layout>
-                <WorkoutTrackerPage />
-              </Layout>
-            } />
-            <Route path="/nutrition" element={
-              <Layout>
-                <NutritionPage />
-              </Layout>
-            } />
-            <Route path="/profile" element={
-              <Layout>
-                <ProfilePage />
-              </Layout>
-            } />
-            <Route path="/workout-history" element={
-              <Layout>
-                <WorkoutHistoryPage />
-              </Layout>
-            } />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+             <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <BMICalculatorPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <DashboardPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/workout-tracker"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <WorkoutTrackerPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/nutrition"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <NutritionPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ProfilePage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/workout-history"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <WorkoutHistoryPage />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

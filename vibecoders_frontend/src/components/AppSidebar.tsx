@@ -63,11 +63,11 @@ export function AppSidebar() {
             {!collapsed && (
               <>
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback>{user.name[0]}</AvatarFallback>
+                  <AvatarImage src={"https://api.dicebear.com/7.x/avataaars/svg?seed=Admin"} alt={user.userName} />
+                  <AvatarFallback>{user.userName[0]}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{user.name}</p>
+                  <p className="text-sm font-medium truncate">{user.userName}</p>
                   <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                 </div>
               </>

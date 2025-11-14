@@ -30,8 +30,8 @@ public class WebSecurityConfig {
 
     private final String[] PUBLIC_API = {
             "/api/**",
-            "/api/login",
-            "/api/signup",
+            "/api/auth/login",
+            "/api/auth/signup",
             //Swagger
             "/swagger-ui/**",
             "/v3/api-docs/**",
@@ -56,32 +56,27 @@ public class WebSecurityConfig {
     };
 
 
-//    private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
-
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http.cors(Customizer.withDefaults())
-                .authorizeHttpRequests((auth) -> auth.anyRequest().permitAll()
-//                        .requestMatchers(HttpMethod.GET, "/api/products/**").permitAll()
-//                        .requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
-//                        .requestMatchers(PUBLIC_API).permitAll()
-//                        .requestMatchers(ADMIN_API).hasAuthority("ADMIN")
-//                        .requestMatchers(CUSTOMER_API).hasAuthority("CUSTOMER")
-//                        .requestMatchers(STAFF_API).hasAuthority("STAFF")
-//                        .requestMatchers(REFRESH_TOKEN).hasAuthority("REFRESH_TOKEN")
-//                        .requestMatchers(REFRESH_PASSWORD_TOKEN).hasAuthority("REFRESH_PASSWORD_TOKEN")
-//                        .anyRequest().authenticated()
-                )
-                .exceptionHandling(
-                        exception -> exception.authenticationEntryPoint(new BearerTokenAuthenticationEntryPoint())
-                                .accessDeniedHandler(new BearerTokenAccessDeniedHandler())
-//                                .authenticationEntryPoint(customAuthenticationEntryPoint)
-
-                )
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(new JwtAuthConverter())))
+    public SecurityFilterChain publicApi(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher(PUBLIC_API)
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                .csrf(csrf -> csrf.disable())
+                .cors(Customizer.withDefaults());
+        return http.build();
+    }
+    @Bean
+    public SecurityFilterChain protectedApi(HttpSecurity http) throws Exception {
+        http
+                .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(new BearerTokenAuthenticationEntryPoint())
+                        .accessDeniedHandler(new BearerTokenAccessDeniedHandler()))
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(new JwtAuthConverter())))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .csrf(csrf -> csrf.disable());
-
+                .csrf(csrf -> csrf.disable())
+                .cors(Customizer.withDefaults());
         return http.build();
     }
 

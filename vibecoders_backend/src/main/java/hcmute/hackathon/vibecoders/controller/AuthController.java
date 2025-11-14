@@ -20,14 +20,14 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
     private final IAuthService authService;
 
-    @PostMapping("/api/login")
+    @PostMapping("/login")
     public ResponseData<?> login(@Valid @RequestBody LoginRequestDto loginDTO) {
         return new ResponseData<>(HttpStatus.CREATED.value(), "Đăng nhập thành công", authService.login(loginDTO));
 
     }
 
 
-    @PostMapping("/api/signup")
+    @PostMapping("/signup")
     public ResponseData<?> signup(@Valid @RequestBody SignupRequestDto signupDTO) {
         boolean isRegistered = authService.register(signupDTO);
         if (isRegistered) {
@@ -38,10 +38,15 @@ public class AuthController {
     }
 
 
-    @PostMapping("/api/refresh")
+    @PostMapping("/refresh")
     public ResponseData<?> refreshToken(@RequestHeader("Authorization") String authHeader) {
         String newAccessToken = authService.createNewAccessToken(authHeader);
         return new ResponseData<>(HttpStatus.CREATED.value(), "New access token", newAccessToken);
+    }
+
+    @GetMapping("/profile")
+    public ResponseData<?> getProfile(@RequestHeader("Authorization") String authHeader) {
+        return new ResponseData<>(HttpStatus.CREATED.value(), "UserDTO", authService.getProfile(authHeader));
     }
 
 

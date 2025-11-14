@@ -52,6 +52,4 @@ public class JwtConfig {
                 build();
         return jwtDecoder.decode(token);
     }
-
-
 }

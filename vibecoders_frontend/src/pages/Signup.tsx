@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -13,13 +13,14 @@ export default function Signup() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const { signup, loginWithGoogle, isAuthenticated } = useAuth();
+  const { signup, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  if (isAuthenticated) {
-    navigate('/');
-    return null;
-  }
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/');
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,11 +45,6 @@ export default function Signup() {
     navigate('/');
   };
 
-  const handleGoogleSignup = () => {
-    loginWithGoogle();
-    toast.success('Đăng ký với Google thành công!');
-    navigate('/');
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 via-background to-secondary/20 p-4">
@@ -133,15 +129,6 @@ export default function Signup() {
             </div>
           </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={handleGoogleSignup}
-          >
-            <Chrome className="mr-2 h-4 w-4" />
-            Đăng ký với Google
-          </Button>
         </CardContent>
         <CardFooter className="flex justify-center">
           <p className="text-sm text-muted-foreground">
