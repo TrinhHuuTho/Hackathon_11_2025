@@ -1,5 +1,11 @@
 import { MainLayout } from "@/components/Layout/MainLayout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -16,22 +22,28 @@ import {
   ArrowRight,
   Flame,
   Target,
-  Award
+  Award,
 } from "lucide-react";
 import {
   recentQuizzes,
   popularTheories,
   popularQuestions,
   learningStreak,
-  userProgress
+  userProgress,
 } from "@/data/dashboard";
 import { cn } from "@/lib/utils";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    const diffInHours = Math.floor(
+      (now.getTime() - date.getTime()) / (1000 * 60 * 60)
+    );
 
     if (diffInHours < 1) return "Vừa xong";
     if (diffInHours < 24) return `${diffInHours} giờ trước`;
@@ -40,7 +52,7 @@ export default function Dashboard() {
     if (diffInDays < 7) return `${diffInDays} ngày trước`;
     return date.toLocaleDateString("vi-VN", {
       day: "numeric",
-      month: "short"
+      month: "short",
     });
   };
 
@@ -70,6 +82,17 @@ export default function Dashboard() {
     }
   };
 
+  useEffect(() => {
+    const onboarding = localStorage.getItem("onboarding");
+
+    // Redirect if onboarding is not completed
+    // Cases: null (not set), "false", or any value that's not "true"
+    if (!onboarding || onboarding === "false") {
+      navigate("/onboarding", { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount
+
   return (
     <MainLayout>
       <div className="max-w-7xl mx-auto space-y-8">
@@ -81,9 +104,7 @@ export default function Dashboard() {
                 <Home className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-800">
-                  Trang chủ
-                </h1>
+                <h1 className="text-3xl font-bold text-gray-800">Trang chủ</h1>
                 <p className="text-gray-600">
                   Chào mừng trở lại! Hãy tiếp tục hành trình học tập của bạn
                 </p>
@@ -168,9 +189,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <p className="text-sm font-medium text-gray-700">Tổng cộng</p>
-              <p className="text-xs text-gray-500 mt-1">
-                Kiên trì mỗi ngày!
-              </p>
+              <p className="text-xs text-gray-500 mt-1">Kiên trì mỗi ngày!</p>
             </CardContent>
           </Card>
         </div>
@@ -192,11 +211,16 @@ export default function Dashboard() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {recentQuizzes.map((quiz) => (
-              <Card key={quiz.id} className="hover:shadow-lg transition-all border-2">
+              <Card
+                key={quiz.id}
+                className="hover:shadow-lg transition-all border-2"
+              >
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <CardTitle className="text-lg mb-1">{quiz.title}</CardTitle>
+                      <CardTitle className="text-lg mb-1">
+                        {quiz.title}
+                      </CardTitle>
                       <CardDescription className="flex items-center gap-2">
                         <Clock className="w-4 h-4" />
                         {formatDate(quiz.completedAt)}
@@ -218,12 +242,14 @@ export default function Dashboard() {
                           {quiz.score}/{quiz.totalQuestions}
                         </span>
                         <span className="text-sm text-gray-600">
-                          ({Math.round((quiz.score / quiz.totalQuestions) * 100)}%)
+                          (
+                          {Math.round((quiz.score / quiz.totalQuestions) * 100)}
+                          %)
                         </span>
                       </div>
                     </div>
-                    <Progress 
-                      value={(quiz.score / quiz.totalQuestions) * 100} 
+                    <Progress
+                      value={(quiz.score / quiz.totalQuestions) * 100}
                       className="h-2"
                     />
                     <div className="flex justify-end">
@@ -256,7 +282,10 @@ export default function Dashboard() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {popularTheories.map((theory) => (
-              <Card key={theory.id} className="hover:shadow-lg transition-all group cursor-pointer border-2">
+              <Card
+                key={theory.id}
+                className="hover:shadow-lg transition-all group cursor-pointer border-2"
+              >
                 <div className="aspect-video w-full bg-gradient-to-br from-blue-100 to-purple-100 rounded-t-lg overflow-hidden">
                   <div className="w-full h-full flex items-center justify-center bg-gray-200">
                     <BookOpen className="w-12 h-12 text-gray-400" />
@@ -314,11 +343,16 @@ export default function Dashboard() {
 
           <div className="space-y-4">
             {popularQuestions.map((item) => (
-              <Card key={item.id} className="hover:shadow-lg transition-all border-2">
+              <Card
+                key={item.id}
+                className="hover:shadow-lg transition-all border-2"
+              >
                 <CardHeader>
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
-                      <CardTitle className="text-lg mb-2">{item.question}</CardTitle>
+                      <CardTitle className="text-lg mb-2">
+                        {item.question}
+                      </CardTitle>
                       <div className="flex items-center gap-3 text-sm text-gray-600">
                         <Badge variant="outline">{item.category}</Badge>
                         <div className="flex items-center gap-1">
@@ -335,7 +369,9 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                    <p className="text-sm font-semibold text-blue-900 mb-2">Câu trả lời:</p>
+                    <p className="text-sm font-semibold text-blue-900 mb-2">
+                      Câu trả lời:
+                    </p>
                     <p className="text-sm text-gray-700 leading-relaxed">
                       {item.answer}
                     </p>

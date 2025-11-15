@@ -34,11 +34,13 @@ import {
   getQuizById,
 } from "@/util/history.api";
 import { FlashCard, QuizAnswerDto } from "@/types/history";
+import GenerateService, { Card as SavedCard } from "@/util/generate.api";
 
 export default function History() {
   const [selectedTab, setSelectedTab] = useState("flashcards");
   const [flashcards, setFlashcards] = useState<FlashCard[]>([]);
   const [quizzes, setQuizzes] = useState<QuizAnswerDto[]>([]);
+  const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedFlashcards, setExpandedFlashcards] = useState<Set<string>>(
@@ -53,12 +55,14 @@ export default function History() {
     const fetchHistory = async () => {
       try {
         setLoading(true);
-        const [flashcardData, quizData] = await Promise.all([
+        const [flashcardData, quizData, savedCardsData] = await Promise.all([
           getFlashCardHistory(),
           getQuizHistory(),
+          GenerateService.getCardsToReview(),
         ]);
         setFlashcards(flashcardData);
         setQuizzes(quizData);
+        setSavedCards(savedCardsData);
       } catch (err) {
         console.error("Error loading history:", err);
         setError("Không thể tải lịch sử. Vui lòng thử lại sau.");
@@ -144,7 +148,7 @@ export default function History() {
   };
 
   // Calculate stats
-  const savedFlashcardsCount = flashcards.filter((fc) => fc.isSaved).length;
+  const savedFlashcardsCount = savedCards.length;
   const totalFlashcards = flashcards.length;
   const totalQuizzes = quizzes.length;
   const passedQuizzes = quizzes.filter((quiz) => {
@@ -468,7 +472,7 @@ export default function History() {
 
           {/* Saved Flashcards */}
           <TabsContent value="saved" className="space-y-4">
-            {flashcards.filter((fc) => fc.isSaved).length === 0 ? (
+            {savedCards.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
                   <Bookmark className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -476,54 +480,48 @@ export default function History() {
                 </CardContent>
               </Card>
             ) : (
-              flashcards
-                .filter((fc) => fc.isSaved)
-                .map((card) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {savedCards.map((card, index) => (
                   <Card
-                    key={card.id}
+                    key={index}
                     className="hover:shadow-lg transition-shadow"
                   >
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <CardTitle className="text-lg mb-2">
-                            {card.type || "Saved Flashcard"}
+                          <CardTitle className="text-lg mb-2 flex items-center gap-2">
+                            <svg
+                              className="w-5 h-5 text-yellow-500 fill-current"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                            </svg>
+                            Thẻ đã lưu #{index + 1}
                           </CardTitle>
-                          <CardDescription className="flex items-center gap-3">
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-4 h-4" />
-                              {formatDate(card.createdAt)}
-                            </span>
-                            <Badge variant="outline">
-                              {card.cards.length} thẻ
-                            </Badge>
-                          </CardDescription>
                         </div>
-                        <Bookmark className="w-5 h-5 text-orange-500 fill-current" />
                       </div>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
-                        {card.cards.slice(0, 2).map((c, idx) => (
-                          <div
-                            key={idx}
-                            className="bg-blue-50 p-3 rounded-lg border border-blue-100"
-                          >
-                            <p className="text-sm font-semibold text-gray-800 mb-1">
-                              {c.front}
-                            </p>
-                            <p className="text-sm text-gray-600">{c.back}</p>
-                          </div>
-                        ))}
-                        {card.cards.length > 2 && (
-                          <p className="text-xs text-gray-500 text-center">
-                            +{card.cards.length - 2} thẻ khác
+                        <div className="bg-gradient-to-br from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200">
+                          <p className="text-sm font-semibold text-gray-600 mb-2">
+                            Câu hỏi:
                           </p>
-                        )}
+                          <p className="text-base font-semibold text-gray-800 mb-3">
+                            {card.front}
+                          </p>
+                          <div className="bg-white p-3 rounded border border-gray-200">
+                            <p className="text-sm font-semibold text-gray-600 mb-1">
+                              Trả lời:
+                            </p>
+                            <p className="text-sm text-gray-700">{card.back}</p>
+                          </div>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
-                ))
+                ))}
+              </div>
             )}
           </TabsContent>
 

@@ -13,15 +13,6 @@ import java.util.List;
 @Builder
 public class FlashCardRequest {
     String id;
-    String email;
-    List<CardRequest> cardRequests;
-
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    public static class CardRequest {
-        String front;
-        String back;
-    }
+    String front;
+    String back;
 }

@@ -16,6 +16,11 @@ interface SubSection {
   summary: string;
 }
 
+export interface Card {
+  front: string;
+  back: string;
+}
+
 const saveSummaryText = async (summaryText: string) => {
   try {
     const formData = new FormData();
@@ -83,6 +88,24 @@ const generateFlashcards = async (
   }
 };
 
+const saveCardToReview = async (card: Card) => {
+  try {
+    const response = await axios.post(`${API_FLASHCARD_URL}/saveCard`, card);
+    return response.data;
+  } catch (error: any) {
+    throw error.response?.data || error;
+  }
+};
+
+const getCardsToReview = async () => {
+  try {
+    const response = await axios.get(`${API_FLASHCARD_URL}/review`);
+    return response.data;
+  } catch (error: any) {
+    throw error.response?.data || error;
+  }
+};
+
 const generateQuiz = async (
   summaryText: string,
   nQuestions: number = 10,
@@ -125,4 +148,6 @@ export default {
   generateQuiz,
   saveSummaryText,
   saveQuizAnswer,
+  saveCardToReview,
+  getCardsToReview,
 };

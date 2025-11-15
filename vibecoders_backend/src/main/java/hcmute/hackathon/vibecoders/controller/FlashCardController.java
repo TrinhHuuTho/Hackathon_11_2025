@@ -6,10 +6,12 @@ import hcmute.hackathon.vibecoders.dto.request.FlashCardRequestDto;
 import hcmute.hackathon.vibecoders.dto.request.WholeFlashCardRequest;
 import hcmute.hackathon.vibecoders.dto.response.FlashcardSet;
 import hcmute.hackathon.vibecoders.dto.response.ResponseData;
+import hcmute.hackathon.vibecoders.entity.Card;
 import hcmute.hackathon.vibecoders.entity.Event;
 import hcmute.hackathon.vibecoders.entity.FlashCard;
 import hcmute.hackathon.vibecoders.entity.User;
 import hcmute.hackathon.vibecoders.exception.CustomException;
+import hcmute.hackathon.vibecoders.repository.CardRepository;
 import hcmute.hackathon.vibecoders.repository.FlashCardRepository;
 import hcmute.hackathon.vibecoders.service.impl.UserServiceImpl;
 import hcmute.hackathon.vibecoders.util.PythonUtil;
@@ -33,6 +35,21 @@ public class FlashCardController {
     private final FlashCardRepository flashCardRepository;
     private final ObjectMapper objectMapper;
     private final UserServiceImpl userServiceImpl;
+    private final CardRepository cardRepository;
+
+    @PostMapping("/saveCard")
+    public ResponseData<?> saveCardToReview(@RequestBody Card request) {
+        request.setEmail(userServiceImpl.getCurrentUser().getEmail());
+        cardRepository.save(request);
+        return ResponseData.success("Successfully saved FlashCard");
+    }
+
+    @GetMapping("/review")
+    public ResponseData<?> getCardsFromReview() {
+        return ResponseData.success(
+                cardRepository.findByEmail(userServiceImpl.getCurrentUser().getEmail())
+        );
+    }
 
     // call python api
     @PostMapping("/generate")
@@ -71,45 +88,6 @@ public class FlashCardController {
     @GetMapping("/{id}")
     public ResponseData<?> getFlashCardById(@PathVariable String id) {
         return ResponseData.success(flashCardRepository.findById(id));
-    }
-
-    @PostMapping("/whole")
-    public ResponseData<?> createWholeFlashCards(@RequestBody WholeFlashCardRequest request) {
-
-        List<FlashCard> flashCards = request.getFlashCards().stream()
-                .map(fl -> {
-                    FlashCard flashCard = FlashCard.builder()
-                            .cards(fl.getCardRequests().stream()
-                                    .map(cardRequest -> FlashCard.Card.builder()
-                                            .front(cardRequest.getFront())
-                                            .back(cardRequest.getBack())
-                                            .build()).toList())
-                            .createdAt(Instant.now())  // set thời điểm tạo
-                            .updatedAt(Instant.now())  // initial = created
-                            .isSaved(false)
-                            .build();
-                    return flashCard;
-                }).toList();
-
-        List<FlashCard> saved = flashCardRepository.saveAll(flashCards);
-        return ResponseData.success(saved);
-    }
-
-    @PostMapping("")
-    public ResponseData<?> saveFlashCardToReview(@RequestBody FlashCardRequest request) {
-        FlashCard flashCard = flashCardRepository.findById(request.getId())
-                .orElseThrow(() -> new CustomException("FlashCard not found", HttpStatus.NOT_FOUND));
-
-        flashCard.setEmail(userServiceImpl.getCurrentUser().getEmail());
-        flashCard.setSaved(true);
-        List<FlashCard.Card> flashCards = request.getCardRequests().stream()
-                .map(fl -> FlashCard.Card.builder()
-                        .front(fl.getFront())
-                        .back(fl.getBack())
-                        .build()).toList();
-        flashCard.setCards(flashCards);
-        flashCardRepository.save(flashCard);
-        return ResponseData.success("Successfully saved FlashCard");
     }
 
 }
