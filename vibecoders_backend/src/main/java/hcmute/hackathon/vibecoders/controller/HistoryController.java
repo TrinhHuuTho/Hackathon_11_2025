@@ -42,7 +42,10 @@ public class HistoryController {
 
     @GetMapping("/quiz/{id}")
     public ResponseData<?> getQuizById(@PathVariable String id) {
-        return ResponseData.success(quizAnswerDtoRepo.findById(id));
+        String email = userService.getCurrentUser().getEmail();
+       QuizAnswerDto quiz = quizAnswerDtoRepo.findByEmail(email).stream()
+               .filter(q -> q.getId().equals(id)).findFirst().orElse(null);
+        return ResponseData.success(quiz);
     }
 
 }
