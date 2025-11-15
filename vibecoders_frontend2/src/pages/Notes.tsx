@@ -5,11 +5,16 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { addNoteApi, deleteNoteApi, getNotesApi } from "@/util/note.api";
-import { Note } from "@/util/note.api";
+import { Note } from "@/util/note.api"; 
 import { Editor, Viewer } from '@toast-ui/react-editor';
 import '@toast-ui/editor/dist/toastui-editor.css';
 import '@toast-ui/editor/dist/toastui-editor-viewer.css';
 import { Editor as EditorType } from '@toast-ui/editor';
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "@/components/ui/use-toast"; 
+
+
+
 const Notes = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
@@ -20,14 +25,21 @@ const Notes = () => {
   const [hasMore, setHasMore] = useState(true);
   const [isSelectedNew, setIsSelectedNew] = useState(false);
   
+  // THAY ĐỔI: State cho checkbox addCalendar
+  const [addCalendar, setAddCalendar] = useState(false);
+
   const editorRef = useRef<Editor | null>(null);
 
   const createNewNote = async () => {
+    // THAY ĐỔI: Reset addCalendar khi tạo note mới
+    setAddCalendar(false);
+
     const newNote: Note = {
       id: `temp-${Date.now()}`,
       title: "Ghi chú mới",
       content: "", // Bắt đầu với content rỗng
       createdAt: new Date().toISOString(),
+      addCalendar: false, // Mặc định là false khi tạo mới (trước khi người dùng tick)
     };
 
     setNotes(prev => [newNote, ...prev]);
@@ -52,19 +64,31 @@ const Notes = () => {
       setNotes(prev => prev.filter(note => note.id !== id));
       if (selectedNote?.id === id) {
         setSelectedNote(null);
-        setIsEditing(false); // THAY ĐỔI: Tắt edit khi xóa note
+        setIsEditing(false);
       }
+      toast({
+        title: "Đã xóa ghi chú",
+        description: "Ghi chú của bạn đã được xóa thành công.",
+      });
     } catch (error) {
       console.error("Lỗi khi xóa note:", error);
+      toast({
+        title: "Lỗi",
+        description: "Không thể xóa ghi chú.",
+        variant: "destructive",
+      });
     }
   };
 
 
   const updateNoteOnApi = async (id: string, updates: Partial<Note>) => {
     try {
+      const noteToUpdate = notes.find(n => n.id === id);
+      if (!noteToUpdate) return;
+
       const response = await addNoteApi({
-        ...notes.find(n => n.id === id)!,
-        ...updates,
+        ...noteToUpdate,
+        ...updates, 
       });
 
       const updatedNoteFromApi = response.data;
@@ -74,9 +98,18 @@ const Notes = () => {
       );
       
       setSelectedNote(updatedNoteFromApi);
+      toast({
+        title: "Đã cập nhật ghi chú",
+        description: "Ghi chú của bạn đã được lưu thành công.",
+      });
 
     } catch (error) {
       console.error("Lỗi update note:", error);
+      toast({
+        title: "Lỗi",
+        description: "Không thể cập nhật ghi chú.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -89,25 +122,51 @@ const Notes = () => {
 
       try {
         if (isSelectedNew) {
-
-          const newNote = { ...selectedNote, title, content };
-
-        
-          await addNoteApi(newNote);
+          // THAY ĐỔI: Gửi addCalendar khi tạo note mới
+          const newNoteToSave = { 
+            ...selectedNote, 
+            title, 
+            content, 
+            addCalendar: addCalendar // GỬI GIÁ TRỊ CHECKBOX
+          };
+console.log("Payload to addNoteApi:", newNoteToSave);
+          await addNoteApi(newNoteToSave);
           setIsSelectedNew(false);
-          await loadNotes(true); 
-          setSelectedNote(null); 
+          await loadNotes(true); // Tải lại toàn bộ để hiển thị note mới
+          setSelectedNote(null); // Bỏ chọn note
+          toast({
+            title: "Đã tạo ghi chú",
+            description: addCalendar ? "Ghi chú đã được tạo và thêm vào lịch." : "Ghi chú đã được tạo.",
+          });
+
         } else {
-          const updatedNote = { ...selectedNote, title, content };
-          setSelectedNote(updatedNote);
-          setNotes(prev => prev.map(n => n.id === updatedNote.id ? updatedNote : n));
+          // THAY ĐỔI: Gửi addCalendar khi cập nhật note (nếu có thay đổi)
+          const updatedNoteData = { 
+            ...selectedNote, 
+            title, 
+            content, 
+            // KHÔNG GỬI addCalendar ở đây nếu đây không phải note mới được tạo
+            // Vì addCalendar chỉ có ý nghĩa khi tạo note ban đầu
+            // Nếu bạn muốn cho phép thêm vào lịch khi EDIT note đã có,
+            // thì phải có một API riêng hoặc logic khác.
+            // Hiện tại, addCalendar chỉ hoạt động khi tạo note mới.
+          };
+          setSelectedNote(updatedNoteData);
+          setNotes(prev => prev.map(n => n.id === updatedNoteData.id ? updatedNoteData : n));
           
-          await updateNoteOnApi(selectedNote.id, { title, content });
+          await updateNoteOnApi(selectedNote.id, { title, content }); // Chỉ update title và content
         }
       } catch (error) {
         console.error("Lỗi khi lưu note:", error);
+        toast({
+          title: "Lỗi",
+          description: "Không thể lưu ghi chú.",
+          variant: "destructive",
+        });
       } finally {
         setIsEditing(false);
+        // THAY ĐỔI: Reset addCalendar sau khi lưu hoặc hủy chỉnh sửa
+        setAddCalendar(false); 
       }
     } else {
       setIsEditing(true);
@@ -124,9 +183,10 @@ const Notes = () => {
       const data = await getNotesApi(nextPage, size, searchQuery);
       console.log("Loaded notes:", data);
       
-      const localTempNotes = notes.filter(n => n.id.startsWith("temp-"));
-      
       if (reset) {
+        // Lọc bỏ các ghi chú tạm thời trước khi tải lại toàn bộ
+        const nonTempNotes = notes.filter(n => !n.id.startsWith("temp-"));
+        setNotes([...nonTempNotes, ...data.content]); // Giữ lại temp note nếu có
         setNotes(data.content);
         setPage(1);
       } else {
@@ -153,24 +213,31 @@ const Notes = () => {
     return () => clearTimeout(delayDebounce);
   }, [searchQuery]);
 
-  // THAY ĐỔI: Khi chọn note, nếu đang edit note mới (temp) mà chưa save
-  // thì nên xóa note temp đó đi.
+  // THAY ĐỔI: Khi chọn note, reset các state liên quan đến việc tạo/chỉnh sửa
   const selectNoteHandler = (note: Note) => {
-    if (isSelectedNew) {
-      // Xóa note temp đang edit dở
-      setNotes(prev => prev.filter(n => !n.id.startsWith("temp-")));
-      setIsSelectedNew(false);
+    if (isSelectedNew && selectedNote?.id.startsWith("temp-")) {
+      // Xóa note temp đang edit dở nếu có
+      setNotes(prev => prev.filter(n => n.id !== selectedNote.id));
     }
     setSelectedNote(note);
     setIsEditing(false); // Luôn về chế độ xem khi chọn note
+    setIsSelectedNew(false); // Đảm bảo không còn là note mới
+    setAddCalendar(false); // Reset checkbox khi chọn note khác
   }
+
+  // THAY ĐỔI: Xử lý hiển thị checkbox chỉ khi đang tạo note mới
+  const shouldShowAddCalendarCheckbox = isEditing && isSelectedNew;
 
   return (
     <MainLayout>
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">Ghi chú của tôi</h1>
-          <p className="text-muted-foreground">Tổ chức và quản lý kiến thức của bạn</p>
+          <h1 className="text-4xl font-bold text-foreground mb-2">
+            Ghi chú của tôi
+          </h1>
+          <p className="text-muted-foreground">
+            Tổ chức và quản lý kiến thức của bạn
+          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -186,12 +253,17 @@ const Notes = () => {
                   className="pl-10"
                 />
               </div>
-              <Button onClick={createNewNote} size="icon" className="bg-gradient-primary">
+              <Button
+                onClick={createNewNote}
+                size="icon"
+                className="bg-gradient-primary"
+              >
                 <Plus className="w-5 h-5" />
               </Button>
             </div>
 
-            <div className="space-y-2 max-h-[calc(100vh-250px)] overflow-y-auto"
+            <div
+              className="space-y-2 max-h-[calc(100vh-250px)] overflow-y-auto"
               onScroll={(e) => {
                 const bottom =
                   e.currentTarget.scrollHeight - e.currentTarget.scrollTop <=
@@ -202,20 +274,21 @@ const Notes = () => {
                 }
               }}
             >
-            
               {notes.map((note) => (
                 <div
                   key={note.id}
-                  // THAY ĐỔI: Dùng handler riêng
                   onClick={() => selectNoteHandler(note)}
                   className={`p-3 rounded-lg cursor-pointer transition-smooth hover:shadow-soft ${
-                    selectedNote?.id === note.id ? 'bg-primary/10 border-2 border-primary' : 'bg-muted/50'
+                    selectedNote?.id === note.id
+                      ? "bg-primary/10 border-2 border-primary"
+                      : "bg-muted/50"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-sm truncate">{note.title}</h3>
-                      {/* Dòng preview content đã bị xóa, giữ nguyên */}
+                      <h3 className="font-semibold text-sm truncate">
+                        {note.title}
+                      </h3>
                     </div>
                     <Button
                       size="icon"
@@ -230,7 +303,6 @@ const Notes = () => {
                     </Button>
                   </div>
                 </div>
-                
               ))}
               {notes.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
@@ -250,52 +322,79 @@ const Notes = () => {
                     <Input
                       value={selectedNote.title}
                       onChange={(e) =>
-                        setSelectedNote(prev => prev ? { ...prev, title: e.target.value } : prev)
+                        setSelectedNote((prev) =>
+                          prev ? { ...prev, title: e.target.value } : prev
+                        )
                       }
-                      className="text-2xl font-bold border-none p-0 h-auto"
+                      className="text-2xl font-bold border-none p-0 h-auto mr-5"
                       placeholder="Tiêu đề ghi chú"
                     />
                   ) : (
-                    <h2 className="text-2xl font-bold">{selectedNote.title}</h2>
+                    <h2 className="text-2xl font-bold ml-2">
+                      {selectedNote.title}
+                    </h2>
                   )}
-                  <Button
-                    onClick={handleToggleEdit}
-                    variant="outline"
-                    size="sm"
-                  >
-                    <Edit2 className="w-4 h-4 mr-2" />
-                    {isEditing ? "Lưu" : "Chỉnh sửa"} {/* THAY ĐỔI: "Xong" -> "Lưu" */}
-                  </Button>
+                  <div className="flex items-center space-x-2">
+                    {shouldShowAddCalendarCheckbox && (
+                      <>
+                        <Checkbox
+                          id="addCalendar"
+                          checked={addCalendar}
+                          onCheckedChange={(checked) => {
+                            const newCheckedState = checked === true;
+                            setAddCalendar(newCheckedState);
+                            console.log(
+                              "Checkbox changed. New addCalendar state:",
+                              newCheckedState
+                            ); 
+                          }}
+                        />
+                        <label
+                          htmlFor="addCalendar"
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          Thêm vào lịch học
+                        </label>
+                      </>
+                    )}
+                    <Button
+                      onClick={handleToggleEdit}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Edit2 className="w-4 h-4 mr-2" />
+                      {isEditing ? "Lưu" : "Chỉnh sửa"}
+                    </Button>
+                  </div>
                 </div>
 
-                {/* THAY ĐỔI: Logic render Editor / Viewer */}
                 {isEditing ? (
-                  <div className="tui-editor-wrapper"> {/* Thêm wrapper nếu cần custom CSS */}
+                  <div className="tui-editor-wrapper">
                     <Editor
-                      // THAY ĐỔI: Thêm key để re-render khi chọn note
-                      key={selectedNote.id} 
+                      key={selectedNote.id}
                       ref={editorRef}
                       initialValue={selectedNote.content || ""}
-                      initialEditType="wysiwyg" // hoặc "markdown"
+                      initialEditType="wysiwyg"
                       previewStyle="vertical"
-                      height="500px" // Tăng chiều cao
+                      height="500px"
                       useCommandShortcut={true}
-                      // autoFocus={true} // Đã chuyển autoFocus vào handleToggleEdit
                     />
                   </div>
                 ) : (
-                  // Dùng Viewer khi không edit
                   <div className="prose max-w-none">
-                     <Viewer
-                      // THAY ĐỔI: Thêm key để re-render khi chọn note
+                    <Viewer
                       key={selectedNote.id}
-                      initialValue={selectedNote.content || "Ghi chú trống. Nhấn 'Chỉnh sửa' để bắt đầu viết."}
+                      initialValue={
+                        selectedNote.content ||
+                        "Ghi chú trống. Nhấn 'Chỉnh sửa' để bắt đầu viết."
+                      }
                     />
                   </div>
                 )}
 
                 <div className="text-sm text-muted-foreground">
-                  Tạo lúc: {new Date(selectedNote.createdAt).toLocaleString('vi-VN')}
+                  Tạo lúc:{" "}
+                  {new Date(selectedNote.createdAt).toLocaleString("vi-VN")}
                 </div>
               </div>
             ) : (

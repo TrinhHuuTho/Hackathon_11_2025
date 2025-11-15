@@ -4,6 +4,7 @@ export interface Note {
   title: string;
   content: string;
   createdAt: string;
+  addCalendar: boolean;
 }
 
 const API_URL = "/api/notes";

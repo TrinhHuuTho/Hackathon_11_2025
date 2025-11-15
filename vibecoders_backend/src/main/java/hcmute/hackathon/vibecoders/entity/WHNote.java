@@ -20,4 +20,5 @@ public class WHNote {
     private String content;
     private Instant createdAt;
     private String email;
+    private boolean addCalendar;
 }

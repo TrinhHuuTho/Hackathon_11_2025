@@ -13,7 +13,7 @@ import {
   User,
   LogOut
 } from "lucide-react";
-
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 const navItems = [
   { to: "/", icon: BookOpen, label: "Ghi chú" },
   { to: "/summary", icon: FileText, label: "Tóm tắt" },
@@ -74,11 +74,14 @@ export const Sidebar = () => {
               className="w-full justify-start"
               onClick={() => navigate("/profile")}
             >
-              <User className="w-5 h-5 mr-3" />
-              <div className="flex flex-col items-start">
-                <span className="text-sm font-medium">{user.name}</span>
-                <span className="text-xs text-muted-foreground">{user.email}</span>
-              </div>
+              <Avatar className="h-8 w-8">
+                  <AvatarImage src={"https://api.dicebear.com/7.x/avataaars/svg?seed=Admin"} alt={user.userName} />
+                  <AvatarFallback>{user.userName[0]}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{user.userName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                </div>
             </Button>
             <Button
               variant="ghost"

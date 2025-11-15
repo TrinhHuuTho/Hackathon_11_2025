@@ -16,4 +16,5 @@ public class WHNoteRequestDTO {
     private String title;
     private String content;
     private LocalDateTime createdAt;
+    private boolean addCalendar;
 }
