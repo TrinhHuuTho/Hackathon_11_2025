@@ -2,3 +2,25 @@
 .env/
 img.png
 model.ipynb
+
+# Python
+__pycache__/
+*.pyc
+
+# Virtual env
+.venv/
+env/
+
+# Env files
+.env
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# Models / data
+checkpoints/
+data/
