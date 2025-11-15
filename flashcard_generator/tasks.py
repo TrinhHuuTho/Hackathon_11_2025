@@ -1,7 +1,7 @@
 import logging
 from typing import List, Any, Dict
-from .llm_adapter import GeminiAdapter
-from .schemas import Section, FlashcardConfig, Flashcard, FlashcardSet, GenerateRequest
+from llm_adapter import GeminiAdapter
+from schemas import Section, FlashcardConfig, Flashcard, FlashcardSet, GenerateRequest
 
 logger = logging.getLogger(__name__)
 

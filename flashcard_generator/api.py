@@ -12,7 +12,7 @@ import logging
 import json
 from typing import Dict, Any
 
-from .tasks import generate_flashcards
+from tasks import generate_flashcards
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
