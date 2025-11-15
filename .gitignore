@@ -1,0 +1,4 @@
+.venv/
+.env/
+img.png
+model.ipynb
