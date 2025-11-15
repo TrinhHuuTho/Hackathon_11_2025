@@ -63,13 +63,13 @@ async def generate_quiz_endpoint(request_data: Dict[str, Any]):
     {
         "sections": [
             {
-                "title": "Section title",
-                "content": "Section content..."
+                "id": "Section title",
+                "summary": "Section content..."
             }
         ],
         "config": {
-            "question_count": 10,
-            "question_types": ["multiple_choice", "true_false", "fill_blank"]
+            "n_questions": 10,
+            "types": ["multiple_choice", "true_false", "fill_blank"]
         }
     }
 
