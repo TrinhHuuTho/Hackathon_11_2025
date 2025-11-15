@@ -42,8 +42,12 @@ def generate_quiz_job(job_id: str, request_payload: dict) -> dict:
         sections = [s.model_dump() for s in req.sections]
 
     # Incorporate generation config: number of questions and types (Vietnamese only)
-    n_questions = 5
-    types = ["mcq", "tf", "fill_blank"]
+    n_questions = req.config.n_questions if req.config and req.config.n_questions else 5
+    types = (
+        req.config.types
+        if req.config and req.config.types
+        else ["mcq", "tf", "fill_blank"]
+    )
     if req.config:
         try:
             n_questions = int(getattr(req.config, "n_questions", n_questions))
