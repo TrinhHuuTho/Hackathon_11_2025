@@ -115,9 +115,13 @@ def Summaries_Knowledge(ocr_text: str, api_key: str):
     - Có trọng tâm, dễ nhớ
     - Phản ánh đúng lĩnh vực của tài liệu
     - Không thêm kiến thức mới
+    - Và trả về kết quả dưới dạng json như sau:
+    {{
+        "title": "<dựa vào đoạn văn bản để xác định chủ đề cho bản tóm tắt, yêu cầu ngắn gọn và rõ ràng>",
+        "summary": "<bản tóm tắt kiến thức quan trọng>"
+    }}
 
     Bắt đầu tóm tắt dựa trên nội dung ở trên.
-        
     """
 
     response = client.models.generate_content(
