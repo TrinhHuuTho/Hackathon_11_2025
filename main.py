@@ -1,6 +1,8 @@
 # main.py
+# uvicorn main:app --reload
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from services.ocr_service import extract_information
+from services.summaries_service import Summaries_Knowledge
 import uvicorn
 import os
 
@@ -25,9 +27,6 @@ async def ocr_endpoint(file: UploadFile = File(...)):
 
     image_bytes = await file.read()
 
-    print("Received file:", file.filename)
-    print(API_KEY)
-
     try:
         text = extract_information(
             image_bytes=image_bytes,
@@ -39,6 +38,20 @@ async def ocr_endpoint(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/summarize")
+async def summarize_endpoint(text: str):
+    """
+    Endpoint tóm tắt văn bản.
+    Nhận: Chuỗi văn bản
+    Trả về: Chuỗi văn bản tóm tắt
+    """
+
+    try:
+        summary = Summaries_Knowledge(ocr_text=text, api_key=API_KEY)
+        return {"summary": summary}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
