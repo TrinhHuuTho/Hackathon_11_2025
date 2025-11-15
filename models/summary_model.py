@@ -1,4 +1,4 @@
 from pydantic import BaseModel
 
-class SummaryResponseModel(BaseModel):
+class SummaryRequestModel(BaseModel):
     text: str
