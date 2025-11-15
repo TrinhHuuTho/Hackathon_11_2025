@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Flashcard } from "@/types/flashcard";
 import { Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
+import GenerateService from "@/util/generate.api";
+import { useToast } from "@/components/ui/use-toast";
 
 interface FlashcardItemProps {
   card: Flashcard;
@@ -13,6 +15,7 @@ export default function FlashcardItem({
   onToggleBookmark,
 }: FlashcardItemProps) {
   const [isFlipped, setIsFlipped] = useState(false);
+  const { toast } = useToast();
 
   // Reset flip state when card changes
   useEffect(() => {
@@ -23,8 +26,32 @@ export default function FlashcardItem({
     setIsFlipped(!isFlipped);
   };
 
-  const handleBookmark = (e: React.MouseEvent) => {
+  const handleBookmark = async (e: React.MouseEvent) => {
     e.stopPropagation();
+
+    // If card is not yet bookmarked, save it to review
+    if (!card.isBookmarked) {
+      try {
+        await GenerateService.saveCardToReview({
+          front: card.question,
+          back: card.answer,
+        });
+
+        toast({
+          title: "Đã lưu thẻ!",
+          description: "Thẻ đã được thêm vào danh sách ôn tập",
+        });
+      } catch (error) {
+        console.error("Error saving card:", error);
+        toast({
+          title: "Lỗi lưu thẻ",
+          description: "Không thể lưu thẻ. Vui lòng thử lại.",
+          variant: "destructive",
+        });
+        return; // Don't toggle bookmark if API call failed
+      }
+    }
+
     onToggleBookmark(card.id);
   };
 
@@ -42,12 +69,16 @@ export default function FlashcardItem({
             onClick={handleBookmark}
             className={cn(
               "absolute top-4 right-4 p-2 rounded-full transition-all hover:bg-gray-100",
-              card.isBookmarked ? "text-orange-500" : "text-gray-400"
+              card.isBookmarked ? "text-yellow-500" : "text-gray-400"
             )}
           >
-            <Bookmark
-              className={cn("w-6 h-6", card.isBookmarked && "fill-current")}
-            />
+            {card.isBookmarked ? (
+              <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
+            ) : (
+              <Bookmark className="w-6 h-6" />
+            )}
           </button>
 
           <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-6">
@@ -81,12 +112,16 @@ export default function FlashcardItem({
             onClick={handleBookmark}
             className={cn(
               "absolute top-4 right-4 p-2 rounded-full transition-all hover:bg-white/20",
-              card.isBookmarked ? "text-orange-400" : "text-white/70"
+              card.isBookmarked ? "text-yellow-300" : "text-white/70"
             )}
           >
-            <Bookmark
-              className={cn("w-6 h-6", card.isBookmarked && "fill-current")}
-            />
+            {card.isBookmarked ? (
+              <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
+            ) : (
+              <Bookmark className="w-6 h-6" />
+            )}
           </button>
 
           <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center mb-6">
