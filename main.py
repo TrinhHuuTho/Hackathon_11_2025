@@ -3,6 +3,8 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from services.ocr_service import extract_information
 from services.summaries_service import Summaries_Knowledge
+from services.recommend_study_event import RecommendStudyEvent
+from models.recommend_study_model import RecommendRequest
 import uvicorn
 import os
 
@@ -52,6 +54,28 @@ async def summarize_endpoint(text: str):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/api/notes/analyze")
+async def recommend_study_event_endpoint(payload: RecommendRequest):
+    """
+    Endpoint gợi ý sự kiện học tập dựa trên tóm tắt văn bản.
+    Nhận: Chuỗi văn bản tóm tắt
+    Trả về: Danh sách sự kiện học tập được gợi ý
+    """
+
+    try:
+        result = RecommendStudyEvent(
+            userEmail=payload.userEmail,
+            newNote=payload.newNote.dict(),
+            allEventsInMonth=[event.dict() for event in payload.allEventsInMonth],
+            api_key=API_KEY
+        )
+
+        return {"newEvent": result}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
