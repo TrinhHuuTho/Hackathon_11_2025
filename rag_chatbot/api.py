@@ -22,7 +22,9 @@ project_root = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, project_root)
 
 from chat_engine import get_chat_engine, RAGChatEngine
-from retriever_optimized import OptimizedDocumentRetriever as DocumentRetriever
+
+# Use MongoDB retriever instead of mock data retriever
+from mongodb_retriever import MongoDBDocumentRetriever as DocumentRetriever
 from schemas import (
     RAGChatRequest,
     RAGChatResponse,

@@ -90,6 +90,179 @@ class LangChainVectorStore:
         # Create new index từ documents
         self._build_new_index(json_path)
 
+    def build_from_documents(self, documents: List[Dict[str, Any]]) -> None:
+        """
+        Build FAISS index from document list (for MongoDB integration).
+
+        Args:
+            documents: List of documents with 'content' and 'metadata' fields
+        """
+        logger.info(f"Building new FAISS index from {len(documents)} documents...")
+
+        if not documents:
+            raise ValueError("No documents provided")
+
+        # Convert to LangChain documents với chunking
+        langchain_docs = []
+        self.documents = {}
+
+        # Text splitter for chunking
+        text_splitter = CharacterTextSplitter(
+            chunk_size=200, chunk_overlap=50, separator=". "
+        )
+
+        for doc in documents:
+            content = doc.get("content", "").strip()
+            metadata = doc.get("metadata", {})
+
+            if not content or len(content) < 10:
+                continue
+
+            # Split text into chunks
+            chunks = text_splitter.split_text(content)
+
+            for i, chunk in enumerate(chunks):
+                if len(chunk.strip()) < 10:
+                    continue
+
+                # Create unique chunk ID
+                doc_id = metadata.get("id", f"doc_{len(self.documents)}")
+                chunk_id = f"{doc_id}_chunk_{i}"
+
+                # Create LangChain document
+                langchain_doc = Document(
+                    page_content=chunk,
+                    metadata={
+                        "chunk_id": chunk_id,
+                        "document_id": doc_id,
+                        "chunk_index": i,
+                        "topic": metadata.get("topic", "Unknown"),
+                        "category": metadata.get("category", "Unknown"),
+                        **metadata,
+                    },
+                )
+
+                langchain_docs.append(langchain_doc)
+
+                # Store for retrieval
+                self.documents[chunk_id] = {
+                    "content": content,  # Original full content
+                    "chunk_text": chunk,
+                    "metadata": langchain_doc.metadata,
+                }
+
+        if not langchain_docs:
+            raise ValueError("No valid chunks created from documents")
+
+        logger.info(
+            f"Created {len(langchain_docs)} chunks from {len(documents)} documents"
+        )
+
+        # Create FAISS vectorstore
+        logger.info("Creating embeddings and building FAISS index...")
+        self.vectorstore = FAISS.from_documents(langchain_docs, self.embeddings)
+
+        # Save to disk
+        self._save_index()
+
+        logger.info(f"✅ FAISS index built and saved with {len(langchain_docs)} chunks")
+
+    def load_from_disk(self) -> None:
+        """Load existing FAISS index from disk."""
+        if not os.path.exists(self.persist_directory):
+            raise FileNotFoundError(
+                f"Persist directory not found: {self.persist_directory}"
+            )
+
+        index_file = os.path.join(self.persist_directory, "index.faiss")
+        if not os.path.exists(index_file):
+            raise FileNotFoundError(f"FAISS index not found: {index_file}")
+
+        logger.info("Loading existing FAISS index from disk...")
+        self.vectorstore = FAISS.load_local(
+            self.persist_directory,
+            self.embeddings,
+            allow_dangerous_deserialization=True,
+        )
+
+        # Load document metadata
+        self._load_document_metadata()
+        logger.info("✅ FAISS index loaded from disk")
+
+    def search_documents(
+        self,
+        query: str,
+        top_k: int = 5,
+        similarity_threshold: float = 0.0,
+        topic_filter: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Search documents using vector similarity.
+
+        Args:
+            query: Search query
+            top_k: Number of results to return
+            similarity_threshold: Minimum similarity score
+            topic_filter: Filter by topic (optional)
+
+        Returns:
+            List of search results with metadata
+        """
+        if self.vectorstore is None:
+            raise RuntimeError(
+                "Vector store not initialized. Call build_from_documents or load_from_disk first."
+            )
+
+        try:
+            # Perform similarity search with scores
+            docs_with_scores = self.vectorstore.similarity_search_with_score(
+                query, k=top_k
+            )
+
+            results = []
+            for doc, score in docs_with_scores:
+                # Convert distance to similarity (FAISS returns L2 distance)
+                similarity_score = 1.0 / (1.0 + score)
+
+                # Apply similarity threshold
+                if similarity_score < similarity_threshold:
+                    continue
+
+                # Apply topic filter
+                doc_topic = doc.metadata.get("topic", "")
+                if topic_filter and topic_filter.lower() not in doc_topic.lower():
+                    continue
+
+                # Get full document info
+                chunk_id = doc.metadata.get("chunk_id", "")
+                doc_info = self.documents.get(chunk_id, {})
+
+                result = {
+                    "id": doc.metadata.get("document_id", ""),
+                    "chunk_id": chunk_id,
+                    "content": doc_info.get("content", doc.page_content),
+                    "chunk_text": doc.page_content,
+                    "topic": doc.metadata.get("topic", "Unknown"),
+                    "category": doc.metadata.get("category", "Unknown"),
+                    "similarity_score": similarity_score,
+                    "tags": doc.metadata.get("tags", []),
+                    "metadata": doc.metadata,
+                }
+                results.append(result)
+
+            logger.info(f"Found {len(results)} documents for query: '{query[:50]}...'")
+            return results
+
+        except Exception as e:
+            logger.error(f"Error in document search: {e}")
+            return []
+
+    def clear_cache(self) -> None:
+        """Clear any cached data."""
+        # For FAISS, we don't have explicit cache to clear
+        # But we can reset documents dict if needed
+        logger.info("Vector store cache cleared")
+
     def _build_new_index(self, json_path: str) -> None:
         """Build new FAISS index từ JSON documents."""
         logger.info("Building new FAISS index from documents...")
@@ -190,8 +363,21 @@ class LangChainVectorStore:
             with open(metadata_path, "w", encoding="utf-8") as f:
                 serializable_docs = {}
                 for doc_id, doc in self.documents.items():
-                    doc_dict = doc.model_dump()
-                    doc_dict["created_at"] = doc_dict["created_at"].isoformat()
+                    # Handle both dict and Pydantic model
+                    if hasattr(doc, "model_dump"):
+                        doc_dict = doc.model_dump()
+                        if "created_at" in doc_dict and hasattr(
+                            doc_dict["created_at"], "isoformat"
+                        ):
+                            doc_dict["created_at"] = doc_dict["created_at"].isoformat()
+                    else:
+                        # Handle plain dict
+                        doc_dict = dict(doc)
+                        # Convert any datetime objects to ISO format
+                        for key, value in doc_dict.items():
+                            if hasattr(value, "isoformat"):
+                                doc_dict[key] = value.isoformat()
+
                     serializable_docs[doc_id] = doc_dict
 
                 json.dump(serializable_docs, f, ensure_ascii=False, indent=2)
