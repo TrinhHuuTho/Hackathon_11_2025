@@ -2,57 +2,44 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Star, Calendar, Trash2, AlertCircle } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { Star, Calendar } from "lucide-react";
+import { WorkoutRecord, getWorkoutHistoryApi } from "@/util/workoutTracker.api";
 import { toast } from "sonner";
-
-interface WorkoutRecord {
-  id: string;
-  image: string;
-  score: number;
-  feedback: string;
-  notes: string;
-  date: string;
-}
 
 export default function WorkoutHistoryPage() {
   const [records, setRecords] = useState<WorkoutRecord[]>([]);
+  const [page, setPage] = useState(0);
+  const [size] = useState(6); 
+  const [totalPages, setTotalPages] = useState(1);
+
+  const fetchHistory = async (page: number) => {
+    try {
+      const data = await getWorkoutHistoryApi(page, size);
+      setRecords(data.content);
+      setTotalPages(data.totalPages);
+      setPage(data.pageable.pageNumber);
+    } catch (err) {
+      toast.error("Không thể tải lịch sử tập luyện");
+    }
+  };
 
   useEffect(() => {
-    const savedRecords = localStorage.getItem("workoutHistory");
-    if (savedRecords) {
-      setRecords(JSON.parse(savedRecords));
-    }
+    fetchHistory(0);
   }, []);
 
-  const handleDelete = (id: string) => {
-    const updatedRecords = records.filter(record => record.id !== id);
-    setRecords(updatedRecords);
-    localStorage.setItem("workoutHistory", JSON.stringify(updatedRecords));
-    toast.success("Đã xóa bài tập");
+  const handlePrev = () => {
+    if (page > 0) fetchHistory(page - 1);
+  };
+
+  const handleNext = () => {
+    if (page + 1 < totalPages) fetchHistory(page + 1);
   };
 
   if (records.length === 0) {
     return (
       <div className="space-y-6">
         <h1 className="text-3xl font-bold text-foreground">Lịch sử tập luyện</h1>
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Bạn chưa có bài tập nào được lưu. Hãy sử dụng tính năng Workout Tracker để tải ảnh và nhận đánh giá từ AI.
-          </AlertDescription>
-        </Alert>
+        <p>Bạn chưa có bài tập nào được lưu.</p>
       </div>
     );
   }
@@ -70,38 +57,7 @@ export default function WorkoutHistoryPage() {
         {records.map((record) => (
           <Card key={record.id} className="bg-gradient-to-br from-card to-muted/30 overflow-hidden">
             <div className="relative aspect-video bg-muted overflow-hidden">
-              <img 
-                src={record.image} 
-                alt="Workout" 
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute top-2 right-2">
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button 
-                      size="sm" 
-                      variant="destructive"
-                      className="h-8 w-8 p-0"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Xác nhận xóa</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Bạn có chắc chắn muốn xóa bài tập này? Hành động này không thể hoàn tác.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Hủy</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => handleDelete(record.id)}>
-                        Xóa
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
+              <img src={record.fileUrl} alt="Workout" className="w-full h-full object-cover" />
             </div>
 
             <CardHeader className="pb-3">
@@ -119,40 +75,43 @@ export default function WorkoutHistoryPage() {
                 {Array.from({ length: 10 }).map((_, i) => (
                   <Star
                     key={i}
-                    className={`w-3 h-3 ${
-                      i < record.score
-                        ? "fill-secondary text-secondary"
-                        : "text-muted-foreground/30"
-                    }`}
+                    className={`w-3 h-3 ${i < record.score ? "fill-secondary text-secondary" : "text-muted-foreground/30"}`}
                   />
                 ))}
               </div>
 
               <div className="p-3 rounded-lg bg-muted/50 border border-border">
                 <p className="text-sm text-muted-foreground mb-1 font-medium">Nhận xét AI</p>
-                <p className="text-sm text-foreground">{record.feedback}</p>
+                <p className="text-sm text-foreground">{record.comment}</p>
               </div>
 
-              {record.notes && (
+              {record.note && (
                 <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
                   <p className="text-sm text-muted-foreground mb-1 font-medium">Ghi chú</p>
-                  <p className="text-sm text-foreground">{record.notes}</p>
+                  <p className="text-sm text-foreground">{record.note}</p>
                 </div>
               )}
 
               <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t">
                 <Calendar className="w-3 h-3" />
-                <span>{new Date(record.date).toLocaleDateString("vi-VN", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit"
-                })}</span>
+                <span>{new Date(record.createdAt).toLocaleString("vi-VN")}</span>
               </div>
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Pagination */}
+      <div className="flex justify-center items-center gap-4 mt-4">
+        <Button onClick={handlePrev} disabled={page === 0}>
+          Trước
+        </Button>
+        <span>
+          Trang {page + 1} / {totalPages}
+        </span>
+        <Button onClick={handleNext} disabled={page + 1 >= totalPages}>
+          Sau
+        </Button>
       </div>
     </div>
   );

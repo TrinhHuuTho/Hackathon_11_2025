@@ -29,9 +29,9 @@ import java.util.Arrays;
 public class WebSecurityConfig {
 
     private final String[] PUBLIC_API = {
-            "/api/**",
             "/api/auth/login",
             "/api/auth/signup",
+            "/api/auth/refresh",
             //Swagger
             "/swagger-ui/**",
             "/v3/api-docs/**",

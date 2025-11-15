@@ -5,64 +5,82 @@ import { Textarea } from "@/components/ui/textarea";
 import { Camera, Upload, Star, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
+import { SaveWorkoutRequest, uploadMediaApi,saveWorkoutApi } from "@/util/workoutTracker.api";
 
 export const WorkoutTracker = () => {
   const [image, setImage] = useState<string | null>("https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=400");
-  const [score, setScore] = useState<number | null>(8.5);
+  const [score, setScore] = useState<number | null>(null);
   const [feedback, setFeedback] = useState("Tư thế tốt! Lưng thẳng, hơi thở đều. Cần chú ý: Đầu gối không vượt quá mũi chân khi squat.");
   const [notes, setNotes] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [media, setMedia] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<"image" | "video" | null>(null);
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+
   const { toast } = useToast();
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImage(reader.result as string);
-        // Simulate AI analysis
-        setTimeout(() => {
-          const randomScore = Math.floor(Math.random() * 3) + 8; // 8-10
-          setScore(randomScore);
-          const feedbacks = [
-            "Tư thế tốt! Giữ lưng thẳng và hơi hạ mông xuống thêm.",
-            "Xuất sắc! Form chuẩn, tiếp tục duy trì.",
-            "Tốt lắm! Chú ý giữ đầu gối không vượt quá mũi chân."
-          ];
-          setFeedback(feedbacks[randomScore - 8]);
-          toast({
-            title: "Phân tích hoàn tất",
-            description: "AI đã đánh giá bài tập của bạn",
-          });
-        }, 1500);
+
+  const handleMediaUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  const type = file.type.startsWith("video") ? "video" : "image";
+  setMediaType(type);
+  setMediaFile(file);
+  const reader = new FileReader();
+  reader.onloadend = () => {
+    setMedia(reader.result as string);
+  };
+  reader.readAsDataURL(file);
+  };
+
+  const handleCheckWorkout = async () => {
+  if (!mediaFile) {
+    return toast({
+      title: "Chưa chọn file",
+      description: "Vui lòng tải lên ảnh hoặc video trước",
+    });
+  }
+
+  try {
+    const result = await uploadMediaApi(mediaFile);
+
+    setScore(result.point);
+    setFeedback(result.comment);
+
+    toast({
+      title: "Đã phân tích!",
+      description: "AI đã xử lý file của bạn",
+    });
+  } catch (err) {
+    toast({
+      title: "Lỗi",
+      description: "Không thể phân tích file",
+    });
+  }
+};
+
+    const handleSaveWorkout = async () => {
+      if (!mediaFile || score === null) {
+        sonnerToast.error("Vui lòng tải file và nhận đánh giá trước khi lưu");
+        return;
+      }
+
+      const workoutData: SaveWorkoutRequest = {
+        score,
+        comment: feedback,
+        note: notes,
       };
-      reader.readAsDataURL(file);
-    }
-  };
 
-  const handleSaveWorkout = () => {
-    if (!image || score === null) {
-      sonnerToast.error("Vui lòng tải ảnh và nhận đánh giá trước khi lưu");
-      return;
-    }
-
-    const workoutRecord = {
-      id: Date.now().toString(),
-      image,
-      score,
-      feedback,
-      notes,
-      date: new Date().toISOString(),
+      try {
+        const res = await saveWorkoutApi(workoutData, [mediaFile]);
+        sonnerToast.success("Đã lưu bài tập vào lịch sử!");
+        setNotes("");
+      } catch (err) {
+        sonnerToast.error("Lưu thất bại, thử lại");
+      }
     };
-
-    const existingRecords = localStorage.getItem("workoutHistory");
-    const records = existingRecords ? JSON.parse(existingRecords) : [];
-    records.unshift(workoutRecord);
-    localStorage.setItem("workoutHistory", JSON.stringify(records));
-
-    sonnerToast.success("Đã lưu bài tập vào lịch sử!");
-    setNotes("");
-  };
 
   return (
     <Card className="p-6 bg-gradient-to-br from-card to-muted/30 shadow-[var(--shadow-elegant)]">
@@ -75,12 +93,20 @@ export const WorkoutTracker = () => {
 
       <div className="space-y-4">
         <div className="relative aspect-video bg-muted rounded-lg overflow-hidden border-2 border-dashed border-border hover:border-primary transition-colors">
-          {image ? (
-            <img src={image} alt="Workout" className="w-full h-full object-cover" />
+          {media ? (
+            mediaType === "image" ? (
+              <img src={media} className="w-full h-full object-cover" />
+            ) : (
+              <video
+                src={media}
+                controls
+                className="w-full h-full object-cover"
+              />
+            )
           ) : (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
               <Upload className="w-12 h-12 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Tải ảnh tập luyện của bạn</p>
+              <p className="text-sm text-muted-foreground">Tải ảnh hoặc video tập luyện</p>
             </div>
           )}
         </div>
@@ -88,8 +114,8 @@ export const WorkoutTracker = () => {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
-          onChange={handleImageUpload}
+          accept="video/*"
+          onChange={handleMediaUpload}
           className="hidden"
         />
 
@@ -100,7 +126,12 @@ export const WorkoutTracker = () => {
           <Camera className="w-4 h-4 mr-2" />
           Chụp / Tải ảnh
         </Button>
-
+        <Button
+          onClick={handleCheckWorkout}
+          className="w-full bg-primary hover:opacity-90"
+        >
+          🔍 Kiểm Tra
+        </Button>
         {score !== null && (
           <div className="space-y-4 animate-in fade-in duration-500">
             <div className="p-4 rounded-lg bg-gradient-to-br from-primary/10 to-primary-glow/10 border border-primary/20">
