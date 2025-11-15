@@ -10,6 +10,9 @@ import {
 import FlashcardItem from "@/components/FlashcardItem";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { sampleFlashcardSets } from "@/data/flashcards";
 import { Flashcard } from "@/types/flashcard";
 import { MainLayout } from "@/components/Layout/MainLayout";
@@ -22,6 +25,15 @@ export default function Flashcards() {
   const { toast } = useToast();
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+  const [showQuizForm, setShowQuizForm] = useState(false);
+  const [quizConfig, setQuizConfig] = useState({
+    numQuestions: 10,
+    questionTypes: {
+      fill_blank: true,
+      mcq: true,
+      tf: true,
+    },
+  });
 
   // Check if there's data from navigation state
   const navigationData = location.state as {
@@ -112,6 +124,29 @@ export default function Flashcards() {
   };
 
   const handleGenerateQuiz = async () => {
+    // Validate configuration
+    const selectedTypes = Object.entries(quizConfig.questionTypes)
+      .filter(([_, selected]) => selected)
+      .map(([type]) => type);
+
+    if (selectedTypes.length === 0) {
+      toast({
+        title: "Vui lòng chọn loại câu hỏi",
+        description: "Bạn cần chọn ít nhất một loại câu hỏi",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (quizConfig.numQuestions < 1 || quizConfig.numQuestions > 50) {
+      toast({
+        title: "Số lượng câu hỏi không hợp lệ",
+        description: "Số lượng câu hỏi phải từ 1 đến 50",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsGeneratingQuiz(true);
     toast({
       title: "Đang tạo bài quiz...",
@@ -125,12 +160,16 @@ export default function Flashcards() {
         .join("\n\n");
 
       console.log("All Content for Quiz Generation:", allContent);
+      console.log("Quiz Config:", {
+        numQuestions: quizConfig.numQuestions,
+        types: selectedTypes,
+      });
 
-      const response = await GenerateService.generateQuiz(allContent, 10, [
-        "fill_blank",
-        "mcq",
-        "tf",
-      ]);
+      const response = await GenerateService.generateQuiz(
+        allContent,
+        quizConfig.numQuestions,
+        selectedTypes
+      );
 
       console.log("Quiz Generation Response:", response);
 
@@ -245,7 +284,7 @@ export default function Flashcards() {
             </Button>
           </div>
 
-          {/* Generate Quiz Button - Show when on last card */}
+          {/* Generate Quiz Form - Show when on last card */}
           {currentCardIndex === totalCards - 1 && (
             <div className="mt-8 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-2xl border-2 border-purple-200 shadow-lg">
@@ -257,24 +296,149 @@ export default function Flashcards() {
                     Kiểm tra kiến thức của bạn với bài quiz được tạo tự động
                   </p>
                 </div>
-                <Button
-                  onClick={handleGenerateQuiz}
-                  disabled={isGeneratingQuiz}
-                  size="lg"
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold px-8 py-6 text-lg shadow-lg hover:shadow-xl transition-all"
-                >
-                  {isGeneratingQuiz ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Đang tạo quiz...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-5 h-5 mr-2" />
-                      Tạo bài Quiz ngay
-                    </>
-                  )}
-                </Button>
+
+                {!showQuizForm ? (
+                  <Button
+                    onClick={() => setShowQuizForm(true)}
+                    size="lg"
+                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold px-8 py-6 text-lg shadow-lg hover:shadow-xl transition-all"
+                  >
+                    <Sparkles className="w-5 h-5 mr-2" />
+                    Cấu hình bài Quiz
+                  </Button>
+                ) : (
+                  <div className="bg-white p-6 rounded-xl shadow-md text-left max-w-md mx-auto">
+                    {/* Number of questions */}
+                    <div className="mb-6">
+                      <Label
+                        htmlFor="numQuestions"
+                        className="text-gray-700 font-semibold mb-2 block"
+                      >
+                        Số lượng câu hỏi
+                      </Label>
+                      <Input
+                        id="numQuestions"
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={quizConfig.numQuestions}
+                        onChange={(e) =>
+                          setQuizConfig({
+                            ...quizConfig,
+                            numQuestions: parseInt(e.target.value) || 1,
+                          })
+                        }
+                        className="w-full"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Từ 1 đến 50 câu
+                      </p>
+                    </div>
+
+                    {/* Question types */}
+                    <div className="mb-6">
+                      <Label className="text-gray-700 font-semibold mb-3 block">
+                        Loại câu hỏi
+                      </Label>
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="fill_blank"
+                            checked={quizConfig.questionTypes.fill_blank}
+                            onCheckedChange={(checked) =>
+                              setQuizConfig({
+                                ...quizConfig,
+                                questionTypes: {
+                                  ...quizConfig.questionTypes,
+                                  fill_blank: checked as boolean,
+                                },
+                              })
+                            }
+                          />
+                          <label
+                            htmlFor="fill_blank"
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                          >
+                            Điền khuyết
+                          </label>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="mcq"
+                            checked={quizConfig.questionTypes.mcq}
+                            onCheckedChange={(checked) =>
+                              setQuizConfig({
+                                ...quizConfig,
+                                questionTypes: {
+                                  ...quizConfig.questionTypes,
+                                  mcq: checked as boolean,
+                                },
+                              })
+                            }
+                          />
+                          <label
+                            htmlFor="mcq"
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                          >
+                            Nhiều lựa chọn
+                          </label>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="tf"
+                            checked={quizConfig.questionTypes.tf}
+                            onCheckedChange={(checked) =>
+                              setQuizConfig({
+                                ...quizConfig,
+                                questionTypes: {
+                                  ...quizConfig.questionTypes,
+                                  tf: checked as boolean,
+                                },
+                              })
+                            }
+                          />
+                          <label
+                            htmlFor="tf"
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                          >
+                            Đúng/Sai
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={() => setShowQuizForm(false)}
+                        variant="outline"
+                        className="flex-1"
+                        disabled={isGeneratingQuiz}
+                      >
+                        Hủy
+                      </Button>
+                      <Button
+                        onClick={handleGenerateQuiz}
+                        disabled={isGeneratingQuiz}
+                        className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold"
+                      >
+                        {isGeneratingQuiz ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Đang tạo...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-4 h-4 mr-2" />
+                            Tạo Quiz
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

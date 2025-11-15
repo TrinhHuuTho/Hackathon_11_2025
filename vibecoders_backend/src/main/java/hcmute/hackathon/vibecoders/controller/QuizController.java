@@ -2,6 +2,7 @@ package hcmute.hackathon.vibecoders.controller;
 
 import hcmute.hackathon.vibecoders.dto.request.FlashCardRequestDto;
 import hcmute.hackathon.vibecoders.dto.request.QuizAnswerDto;
+import hcmute.hackathon.vibecoders.dto.request.QuizCardRequestDTO;
 import hcmute.hackathon.vibecoders.dto.request.QuizRequestDto;
 import hcmute.hackathon.vibecoders.dto.response.FlashcardSet;
 import hcmute.hackathon.vibecoders.dto.response.QuizSet;
@@ -35,7 +36,7 @@ public class QuizController {
 
     // call python api
     @PostMapping("/generate")
-    public ResponseData<?> generateFlashCard(@Valid @RequestBody FlashCardRequestDto dto) {
+    public ResponseData<?> generateFlashCard(@Valid @RequestBody QuizCardRequestDTO dto) {
         String url = PythonUtil.PYTHON_SERVICE_QUIZ + "/generate";
 
         // Nếu muốn save vào DB thì làm ở đây
@@ -47,5 +48,6 @@ public class QuizController {
                 .map(QuizSet::getQuestions)
                 .block();
         return ResponseData.success(result);
+
     }
 }

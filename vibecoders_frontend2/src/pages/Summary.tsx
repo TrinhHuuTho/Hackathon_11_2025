@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Upload,
@@ -7,17 +7,25 @@ import {
   Brain,
   Loader2,
   FileQuestion,
+  X,
+  FileText,
+  Image as ImageIcon,
+  Edit2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { useToast } from "@/components/ui/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { Editor, Viewer } from "@toast-ui/react-editor";
+import "@toast-ui/editor/dist/toastui-editor.css";
+import "@toast-ui/editor/dist/toastui-editor-viewer.css";
 
 import GenerateSerivce from "@/util/generate.api";
 
 const Summary = () => {
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [ocrText, setOcrText] = useState("");
   const [summary, setSummary] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -27,33 +35,72 @@ const Summary = () => {
   const [isSaved, setIsSaved] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const editorRef = useRef<Editor | null>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const uploadedFile = e.target.files?.[0];
-    if (uploadedFile) {
-      setFile(uploadedFile);
+    const uploadedFiles = e.target.files;
+    if (uploadedFiles && uploadedFiles.length > 0) {
+      const newFiles = Array.from(uploadedFiles);
+      setFiles((prev) => [...prev, ...newFiles]);
       toast({
         title: "File đã tải lên",
-        description: `${uploadedFile.name} đã sẵn sàng để tóm tắt`,
+        description: `Đã thêm ${newFiles.length} file${
+          newFiles.length > 1 ? "s" : ""
+        }`,
       });
     }
   };
 
+  const handleRemoveFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+    toast({
+      title: "Đã xóa file",
+      description: "File đã được loại bỏ khỏi danh sách",
+    });
+  };
+
+  const getFileIcon = (file: File) => {
+    if (file.type.startsWith("image/")) {
+      return <ImageIcon className="w-4 h-4" />;
+    }
+    return <FileText className="w-4 h-4" />;
+  };
+
   const handleSummary = async () => {
-    if (!file) return;
+    if (files.length === 0) return;
 
     setIsLoading(true);
 
     try {
-      // call API to get summary
-      const data = await GenerateSerivce.getSummaryText(file);
-      setSummary(data.summary);
+      // call API to get summary from multiple files
+      const data = await GenerateSerivce.getSummaryText(files);
+
+      // Parse the summary if it's wrapped in JSON
+      let summaryText = data.summary;
+
+      // Check if summary contains JSON with title and summary fields
+      if (summaryText && summaryText.includes("```json")) {
+        // Extract JSON from markdown code block
+        const jsonMatch = summaryText.match(/```json\s*(\{[\s\S]*?\})\s*```/);
+        if (jsonMatch && jsonMatch[1]) {
+          try {
+            const parsedData = JSON.parse(jsonMatch[1]);
+            summaryText = parsedData.summary || summaryText;
+          } catch (parseError) {
+            console.warn("Could not parse JSON from summary:", parseError);
+          }
+        }
+      }
+
+      setSummary(summaryText);
       setIsLoading(false);
       setIsEditing(true);
-      setIsSaved(false); // Reset saved state when new summary is generated
+      setIsSaved(false);
       toast({
         title: "Tóm tắt hoàn tất",
-        description: "AI đã tạo bản tóm tắt từ file của bạn",
+        description: `AI đã tạo bản tóm tắt từ ${files.length} file${
+          files.length > 1 ? "s" : ""
+        }`,
       });
     } catch (error) {
       setIsLoading(false);
@@ -67,7 +114,11 @@ const Summary = () => {
 
   const handleSave = async () => {
     try {
-      await GenerateSerivce.saveSummaryText(summary);
+      // Get content from editor if in edit mode
+      const content = editorRef.current?.getInstance().getMarkdown() || summary;
+      setSummary(content);
+
+      await GenerateSerivce.saveSummaryText(content);
       toast({
         title: "Đã lưu",
         description: "Bản tóm tắt đã được lưu thành công",
@@ -135,7 +186,10 @@ const Summary = () => {
       navigate("/flashcards", {
         state: {
           flashcards: flashcards,
-          setTitle: file?.name || "Flashcards từ tóm tắt",
+          setTitle:
+            files.length > 0
+              ? `Flashcards từ ${files.length} tài liệu`
+              : "Flashcards từ tóm tắt",
           setDescription: "Bộ flashcards được tạo tự động từ tài liệu",
         },
       });
@@ -195,7 +249,10 @@ const Summary = () => {
       navigate("/quiz", {
         state: {
           quizData: response,
-          quizTitle: file?.name || "Quiz từ tóm tắt",
+          quizTitle:
+            files.length > 0
+              ? `Quiz từ ${files.length} tài liệu`
+              : "Quiz từ tóm tắt",
           quizDescription: "Bài kiểm tra được tạo tự động từ tài liệu",
         },
       });
@@ -231,11 +288,14 @@ const Summary = () => {
               <div className="flex items-center gap-4">
                 <label
                   htmlFor="file-upload"
-                  className="flex-1 flex items-center justify-center gap-2 p-8 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-smooth bg-muted/30"
+                  className="flex-1 flex flex-col items-center justify-center gap-2 p-8 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-smooth bg-muted/30"
                 >
-                  <Upload className="w-6 h-6 text-muted-foreground" />
-                  <span className="text-muted-foreground">
-                    {file ? file.name : "Nhấn để tải lên tài liệu"}
+                  <Upload className="w-8 h-8 text-muted-foreground" />
+                  <span className="text-muted-foreground font-medium">
+                    Nhấn để tải lên tài liệu hoặc hình ảnh
+                  </span>
+                  <span className="text-sm text-muted-foreground/70">
+                    Hỗ trợ nhiều file: PDF, DOC, DOCX, TXT, PNG, JPG, JPEG
                   </span>
                   <input
                     id="file-upload"
@@ -243,25 +303,84 @@ const Summary = () => {
                     className="hidden"
                     onChange={handleFileUpload}
                     accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg"
+                    multiple
                   />
                 </label>
               </div>
 
+              {/* Display uploaded files */}
+              {files.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-foreground">
+                      File đã tải lên ({files.length})
+                    </h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFiles([])}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      Xóa tất cả
+                    </Button>
+                  </div>
+                  <div className="grid gap-2 max-h-48 overflow-y-auto">
+                    {files.map((file, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border hover:border-primary/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="flex-shrink-0">
+                            {getFileIcon(file)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">
+                              {file.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {(file.size / 1024).toFixed(2)} KB
+                            </p>
+                          </div>
+                          <Badge variant="secondary" className="flex-shrink-0">
+                            {file.type.startsWith("image/")
+                              ? "Hình ảnh"
+                              : "Tài liệu"}
+                          </Badge>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveFile(index)}
+                          className="flex-shrink-0 ml-2 hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <Button
                 onClick={handleSummary}
-                disabled={!file || isLoading}
+                disabled={files.length === 0 || isLoading}
                 className="w-full bg-gradient-primary"
                 size="lg"
               >
                 {isLoading ? (
                   <>
                     <Sparkles className="w-5 h-5 mr-2 animate-spin" />
-                    Đang tóm tắt...
+                    Đang tóm tắt {files.length} file
+                    {files.length > 1 ? "s" : ""}...
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-5 h-5 mr-2" />
-                    Lấy nội dung từ tài liệu hoặc hình ảnh
+                    Lấy nội dung từ{" "}
+                    {files.length > 0
+                      ? `${files.length} file${files.length > 1 ? "s" : ""}`
+                      : "tài liệu"}
                   </>
                 )}
               </Button>
@@ -272,44 +391,47 @@ const Summary = () => {
           {summary && (
             <Card className="p-6 shadow-soft animate-fade-in">
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold">Nội dung tóm tắt</h2>
+                <div className="flex items-center justify-end">
                   <div className="flex gap-2">
                     <Button
                       onClick={() => {
-                        setIsEditing(!isEditing);
-                        // When switching to edit mode, mark as not saved
-                        if (!isEditing) {
+                        if (isEditing) {
+                          // Save when toggling from edit mode
+                          handleSave();
+                        } else {
+                          // Switch to edit mode
+                          setIsEditing(true);
                           setIsSaved(false);
+                          setTimeout(() => {
+                            editorRef.current?.getInstance().focus();
+                          }, 0);
                         }
                       }}
                       variant="outline"
                       size="sm"
                     >
-                      {isEditing ? "Hủy" : "Chỉnh sửa"}
+                      <Edit2 className="w-4 h-4 mr-2" />
+                      {isEditing ? "Lưu" : "Chỉnh sửa"}
                     </Button>
-                    {isEditing && (
-                      <Button
-                        onClick={handleSave}
-                        size="sm"
-                        className="bg-accent"
-                      >
-                        <Save className="w-4 h-4 mr-2" />
-                        Lưu
-                      </Button>
-                    )}
                   </div>
                 </div>
 
                 {isEditing ? (
-                  <Textarea
-                    value={summary}
-                    onChange={(e) => setSummary(e.target.value)}
-                    className="min-h-[400px] resize-none"
-                  />
+                  <div className="tui-editor-wrapper">
+                    <Editor
+                      ref={editorRef}
+                      initialValue={summary || ""}
+                      initialEditType="wysiwyg"
+                      previewStyle="vertical"
+                      height="500px"
+                      useCommandShortcut={true}
+                    />
+                  </div>
                 ) : (
                   <div className="prose max-w-none">
-                    <p className="whitespace-pre-wrap">{summary}</p>
+                    <Viewer
+                      initialValue={summary || "Nội dung tóm tắt trống"}
+                    />
                   </div>
                 )}
 

@@ -28,10 +28,18 @@ const saveSummaryText = async (summaryText: string) => {
   }
 };
 
-const getSummaryText = async (imageFile: File) => {
+const getSummaryText = async (files: File | File[]) => {
   try {
     const formData = new FormData();
-    formData.append("file", imageFile); // tên "file" phải trùng với backend
+
+    // Handle both single file and multiple files
+    if (Array.isArray(files)) {
+      files.forEach((file) => {
+        formData.append("files", file); // Use "files" for multiple files
+      });
+    } else {
+      formData.append("file", files); // Use "file" for single file (backward compatibility)
+    }
 
     const response = await axios.post(`${API_URL}/summarize`, formData, {
       headers: {

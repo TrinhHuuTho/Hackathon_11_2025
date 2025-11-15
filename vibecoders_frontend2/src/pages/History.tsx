@@ -127,7 +127,7 @@ export default function History() {
     let correctAnswers = 0;
 
     quiz.quizSets.questions.forEach((question, index) => {
-      if (quiz.userAnswers[index] === question.correctAnswer) {
+      if (quiz.userAnswers[index] === question.answer) {
         correctAnswers++;
       }
     });
@@ -211,34 +211,25 @@ export default function History() {
       // Expand
       setExpandedQuizzes((prev) => new Set(prev).add(id));
 
-      // Always fetch fresh details when expanding
-      const quiz = quizzes.find((q) => q.id === id);
-      const needsFetch =
-        !quiz?.quizSets?.questions ||
-        quiz.quizSets.questions.length === 0 ||
-        !quiz.quizSets.title;
-
-      if (needsFetch) {
-        setLoadingDetails((prev) => new Set(prev).add(id));
-        try {
-          const detail = await getQuizById(id);
-          // Update the quiz in the list with full details
-          setQuizzes((prev) => prev.map((q) => (q.id === id ? detail : q)));
-        } catch (error) {
-          console.error("Error loading quiz details:", error);
-          // Collapse on error
-          setExpandedQuizzes((prev) => {
-            const next = new Set(prev);
-            next.delete(id);
-            return next;
-          });
-        } finally {
-          setLoadingDetails((prev) => {
-            const next = new Set(prev);
-            next.delete(id);
-            return next;
-          });
-        }
+      try {
+        const detail = await getQuizById(id);
+        console.log("Fetched quiz detail:", detail);
+        // Update the quiz in the list with full details
+        setQuizzes((prev) => prev.map((q) => (q.id === id ? detail : q)));
+      } catch (error) {
+        console.error("Error loading quiz details:", error);
+        // Collapse on error
+        setExpandedQuizzes((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      } finally {
+        setLoadingDetails((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
       }
     }
   };
@@ -619,11 +610,11 @@ export default function History() {
                                   (question, idx) => {
                                     const userAnswer = quiz.userAnswers[idx];
                                     const isCorrect =
-                                      userAnswer === question.correctAnswer;
+                                      userAnswer === question.answer;
 
                                     return (
                                       <div
-                                        key={idx}
+                                        key={question.id || idx}
                                         className={cn(
                                           "p-4 rounded-lg border-2",
                                           isCorrect
@@ -649,59 +640,104 @@ export default function History() {
                                             <XCircle className="w-5 h-5 text-red-600" />
                                           )}
                                           <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-2">
+                                              <Badge
+                                                variant="secondary"
+                                                className="text-xs"
+                                              >
+                                                {question.type === "mcq"
+                                                  ? "Trắc nghiệm"
+                                                  : question.type ===
+                                                    "fill_blank"
+                                                  ? "Điền khuyết"
+                                                  : "Đúng/Sai"}
+                                              </Badge>
+                                            </div>
                                             <p className="font-semibold text-gray-800 mb-3">
-                                              {question.question}
+                                              {question.stem}
                                             </p>
 
-                                            <div className="space-y-2">
-                                              {question.options.map(
-                                                (option, optIdx) => {
-                                                  const isUserAnswer =
-                                                    option === userAnswer;
-                                                  const isCorrectOption =
-                                                    option ===
-                                                    question.correctAnswer;
+                                            {question.options &&
+                                            question.options.length > 0 ? (
+                                              <div className="space-y-2">
+                                                {question.options.map(
+                                                  (option, optIdx) => {
+                                                    const isUserAnswer =
+                                                      option === userAnswer;
+                                                    const isCorrectOption =
+                                                      option ===
+                                                      question.answer;
 
-                                                  return (
-                                                    <div
-                                                      key={optIdx}
-                                                      className={cn(
-                                                        "p-2 rounded border text-sm",
-                                                        isCorrectOption &&
-                                                          "bg-green-100 border-green-300 font-semibold",
-                                                        isUserAnswer &&
-                                                          !isCorrectOption &&
-                                                          "bg-red-100 border-red-300",
-                                                        !isUserAnswer &&
-                                                          !isCorrectOption &&
-                                                          "bg-white border-gray-200"
-                                                      )}
-                                                    >
-                                                      <div className="flex items-center gap-2">
-                                                        <span className="font-mono">
-                                                          {String.fromCharCode(
-                                                            65 + optIdx
-                                                          )}
-                                                          .
-                                                        </span>
-                                                        <span>{option}</span>
-                                                        {isCorrectOption && (
-                                                          <Badge className="ml-auto bg-green-600 text-white text-xs">
-                                                            Đúng
-                                                          </Badge>
+                                                    return (
+                                                      <div
+                                                        key={optIdx}
+                                                        className={cn(
+                                                          "p-2 rounded border text-sm",
+                                                          isCorrectOption &&
+                                                            "bg-green-100 border-green-300 font-semibold",
+                                                          isUserAnswer &&
+                                                            !isCorrectOption &&
+                                                            "bg-red-100 border-red-300",
+                                                          !isUserAnswer &&
+                                                            !isCorrectOption &&
+                                                            "bg-white border-gray-200"
                                                         )}
-                                                        {isUserAnswer &&
-                                                          !isCorrectOption && (
-                                                            <Badge className="ml-auto bg-red-600 text-white text-xs">
-                                                              Bạn chọn
+                                                      >
+                                                        <div className="flex items-center gap-2">
+                                                          <span className="font-mono">
+                                                            {String.fromCharCode(
+                                                              65 + optIdx
+                                                            )}
+                                                            .
+                                                          </span>
+                                                          <span>{option}</span>
+                                                          {isCorrectOption && (
+                                                            <Badge className="ml-auto bg-green-600 text-white text-xs">
+                                                              Đúng
                                                             </Badge>
                                                           )}
+                                                          {isUserAnswer &&
+                                                            !isCorrectOption && (
+                                                              <Badge className="ml-auto bg-red-600 text-white text-xs">
+                                                                Bạn chọn
+                                                              </Badge>
+                                                            )}
+                                                        </div>
                                                       </div>
+                                                    );
+                                                  }
+                                                )}
+                                              </div>
+                                            ) : (
+                                              <div className="space-y-2">
+                                                <div className="p-3 rounded bg-white border border-gray-200">
+                                                  <div className="text-sm text-gray-600 mb-1">
+                                                    Câu trả lời của bạn:
+                                                  </div>
+                                                  <div
+                                                    className={cn(
+                                                      "font-semibold",
+                                                      isCorrect
+                                                        ? "text-green-600"
+                                                        : "text-red-600"
+                                                    )}
+                                                  >
+                                                    {userAnswer ||
+                                                      "(Không trả lời)"}
+                                                  </div>
+                                                </div>
+                                                {!isCorrect && (
+                                                  <div className="p-3 rounded bg-green-50 border border-green-200">
+                                                    <div className="text-sm text-gray-600 mb-1">
+                                                      Đáp án đúng:
                                                     </div>
-                                                  );
-                                                }
-                                              )}
-                                            </div>
+                                                    <div className="font-semibold text-green-700">
+                                                      {question.answer}
+                                                    </div>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
                                           </div>
                                         </div>
                                       </div>

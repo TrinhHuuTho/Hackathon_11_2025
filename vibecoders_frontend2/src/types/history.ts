@@ -15,15 +15,20 @@ export interface Card {
 }
 
 export interface QuizSet {
-  id: string;
-  title: string;
+  id: string | null;
+  title?: string;
   questions: QuizQuestion[];
+  meta?: any;
 }
 
 export interface QuizQuestion {
-  question: string;
-  options: string[];
-  correctAnswer: string;
+  id: string;
+  type: "mcq" | "fill_blank" | "tf";
+  stem: string;
+  options: string[] | null;
+  answer: string;
+  difficulty: string | null;
+  source_sections: string[];
 }
 
 export interface QuizAnswerDto {
