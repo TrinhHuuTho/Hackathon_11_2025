@@ -162,12 +162,12 @@ export const WorkoutTracker = () => {
 
             <div>
               <label className="text-sm font-medium text-foreground mb-2 block">
-                Ghi chú thêm
+                Phản hồi của bạn
               </label>
               <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Thêm ghi chú về cảm giác, khó khăn gặp phải..."
+                placeholder="Thêm feedback để AI cải thiện trong lần sau..."
                 className="min-h-[100px]"
               />
             </div>

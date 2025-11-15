@@ -6,17 +6,20 @@ import com.cloudinary.utils.ObjectUtils;
 import hcmute.hackathon.vibecoders.dto.request.WorkoutTrackerRequestDTO;
 import hcmute.hackathon.vibecoders.dto.response.WorkoutTrackerResponse;
 import hcmute.hackathon.vibecoders.entity.WorkoutTrackerDocument;
+import hcmute.hackathon.vibecoders.exception.CustomException;
 import hcmute.hackathon.vibecoders.repository.WorkoutTrackerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -84,7 +87,7 @@ public class WorkoutTrackerServiceImpl {
                 .email(email)
                 .score(dto.getScore())
                 .comment(dto.getComment())
-                .note(dto.getNote())
+                .feedBack(dto.getNote())
                 .fileUrl(fileUrls)
                 .createdAt(Instant.now())
                 .build();
@@ -96,6 +99,12 @@ public class WorkoutTrackerServiceImpl {
         String email = principal.getClaim("sub").toString();
 
         return workoutTrackerRepository.findByEmailOrderByCreatedAtDesc(email, PageRequest.of(page, size));
+    }
+
+    public String deleteWorkoutHistory(String id){
+        WorkoutTrackerDocument document = workoutTrackerRepository.findById(id).orElseThrow(() -> new CustomException("Cant find workout", HttpStatus.BAD_REQUEST));
+        workoutTrackerRepository.delete(document);
+        return "Success";
     }
     public String upload(MultipartFile multipartFile) {
         try {

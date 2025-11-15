@@ -20,8 +20,7 @@ public class WorkoutTrackerDocument {
     private String email;
     private Double score;
     private String comment;
-    private String note;
-
+    private String feedBack;
     private String fileUrl;
     private Instant createdAt;
 }
