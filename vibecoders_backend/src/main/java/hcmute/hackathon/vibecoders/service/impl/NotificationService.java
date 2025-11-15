@@ -37,12 +37,8 @@ public class NotificationService {
 
         for (Event event : eventsToSend) {
             try {
-                String subject = "Nhắc nhở: " + event.getTitle();
-                String body = "Đây là nhắc nhở cho sự kiện của bạn: \n" +
-                        event.getDescription() + "\n" +
-                        "Vào lúc: " + event.getEventDateTime().toString();
 
-                emailService.sendSimpleMessage(event.getEmail(), subject, body);
+                emailService.sendEventReminderEmail(event);
 
                 event.setNotificationSent(true);
                 eventRepository.save(event);
