@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Trash2, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,14 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-interface Event {
-  id: string;
-  title: string;
-  description: string;
-  date: string;
-  time: string;
-  color: string;
-}
+import { Event, getEventsApi, addEventApi, deleteEventApi } from "@/util/event.api";
 
 const Calendar = () => {
   const [events, setEvents] = useState<Event[]>([]);
@@ -36,34 +29,87 @@ const Calendar = () => {
     time: "",
   });
 
+  // State mới để tìm kiếm theo ngày
+  const [searchDate, setSearchDate] = useState("");
+
   const colors = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444"];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const loadEvents = async () => {
+    try {
+      const response = await getEventsApi();
+      
+      let eventData: Event[] = [];
+      if (response && Array.isArray(response.content)) {
+        eventData = response.content;
+      } else {
+        eventData = [];
+      }
+      console.log("Loaded events:", response);
+      setEvents(eventData);
+
+    } catch (error) {
+      console.error("Lỗi load events:", error);
+
+      setEvents([]);
+    }
+  };
+
+  useEffect(() => {
+    loadEvents();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newEvent: Event = {
-      id: Date.now().toString(),
-      ...formData,
-      color: colors[Math.floor(Math.random() * colors.length)],
-    };
-    setEvents([...events, newEvent]);
-    setFormData({ title: "", description: "", date: "", time: "" });
-    setIsOpen(false);
-    toast({
-      title: "Đã tạo lịch nhắc",
-      description: "Sự kiện mới đã được thêm vào lịch",
-    });
+    try {
+      const isoDateTime = `${formData.date}T${formData.time}:00`;
+      const newEvent: Event = {
+        id: Date.now().toString(),
+        ...formData,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        eventDateTime: isoDateTime,
+      };
+
+      const response = await addEventApi(newEvent);
+      const savedEvent = response; 
+      setEvents([...events, savedEvent]);
+      setFormData({ title: "", description: "", date: "", time: "" });
+      setIsOpen(false);
+      toast({
+        title: "Đã tạo lịch nhắc",
+        description: "Sự kiện mới đã được thêm vào lịch",
+      });
+    } catch (error) {
+      console.error("Lỗi tạo event:", error);
+    }
   };
 
-  const deleteEvent = (id: string) => {
-    setEvents(events.filter(event => event.id !== id));
-    toast({
-      title: "Đã xóa",
-      description: "Sự kiện đã được xóa khỏi lịch",
-    });
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteEventApi(id);
+      setEvents(events.filter(event => event.id !== id));
+      toast({
+        title: "Đã xóa",
+        description: "Sự kiện đã được xóa khỏi lịch",
+      });
+    } catch (error)
+ {
+      console.error("Lỗi xóa event:", error);
+    }
   };
 
-  // Group events by date
-  const groupedEvents = events.reduce((acc, event) => {
+
+  const filteredEvents = events.filter(event => {
+    if (!searchDate) return true; 
+    return event.date === searchDate;
+  });
+
+  // 2. Group events ĐÃ LỌC
+  const groupedEvents = filteredEvents.reduce((acc, event) => {
+    // Đảm bảo event và event.date hợp lệ
+    if (!event || !event.date) {
+      console.warn("Event không hợp lệ hoặc thiếu ngày:", event);
+      return acc;
+    }
     if (!acc[event.date]) acc[event.date] = [];
     acc[event.date].push(event);
     return acc;
@@ -138,13 +184,38 @@ const Calendar = () => {
           </Dialog>
         </div>
 
+        {/* Input tìm kiếm theo ngày */}
+        <div className="mb-6">
+          <Label htmlFor="searchDate" className="font-semibold">Tìm theo ngày</Label>
+          <Input
+            id="searchDate"
+            type="date"
+            value={searchDate}
+            onChange={(e) => setSearchDate(e.target.value)}
+            className="max-w-xs mt-2"
+          />
+        </div>
+
         <div className="space-y-6">
-          {Object.keys(groupedEvents).length === 0 ? (
+          {/* Kiểm tra mảng đã lọc */}
+          {filteredEvents.length === 0 ? (
             <Card className="p-12 text-center shadow-soft">
               <div className="text-muted-foreground">
                 <CalendarDays className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <p className="text-lg">Chưa có lịch nhắc nào</p>
-                <p className="text-sm mt-2">Tạo lịch nhắc đầu tiên của bạn</p>
+                {/* Hiển thị thông báo động */}
+                {searchDate ? (
+                  <>
+                    <p className="text-lg">Không tìm thấy lịch nhắc</p>
+                    <p className="text-sm mt-2">
+                      Không có lịch hẹn nào cho ngày bạn đã chọn.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-lg">Chưa có lịch nhắc nào</p>
+                    <p className="text-sm mt-2">Tạo lịch nhắc đầu tiên của bạn</p>
+                  </>
+                )}
               </div>
             </Card>
           ) : (
@@ -153,6 +224,7 @@ const Calendar = () => {
               .map((date) => (
                 <div key={date}>
                   <h2 className="text-xl font-semibold mb-3">
+                    {/* Thêm kiểm tra date hợp lệ trước khi format */}
                     {new Date(date).toLocaleDateString("vi-VN", {
                       weekday: "long",
                       year: "numeric",
@@ -170,7 +242,7 @@ const Calendar = () => {
                         >
                           <div className="flex items-start gap-4">
                             <div
-                              className="w-1 h-full rounded-full"
+                              className="w-1 h-12 rounded-full" // Cho chiều cao cố định
                               style={{ backgroundColor: event.color }}
                             />
                             <div className="flex-1">
@@ -186,7 +258,7 @@ const Calendar = () => {
                                 <Button
                                   size="icon"
                                   variant="ghost"
-                                  onClick={() => deleteEvent(event.id)}
+                                  onClick={() => handleDelete(event.id)}
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </Button>

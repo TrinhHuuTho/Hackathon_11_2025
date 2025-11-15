@@ -1,56 +1,169 @@
-import { useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Plus, Search, Trash2, Edit2, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { MainLayout } from "@/components/Layout/MainLayout";
-
-interface Note {
-  id: string;
-  title: string;
-  content: string;
-  createdAt: Date;
-}
-
+import { addNoteApi, deleteNoteApi, getNotesApi } from "@/util/note.api";
+import { Note } from "@/util/note.api";
+import { Editor, Viewer } from '@toast-ui/react-editor';
+import '@toast-ui/editor/dist/toastui-editor.css';
+import '@toast-ui/editor/dist/toastui-editor-viewer.css';
+import { Editor as EditorType } from '@toast-ui/editor';
 const Notes = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(0);
+  const [size] = useState(10);
+  const [hasMore, setHasMore] = useState(true);
+  const [isSelectedNew, setIsSelectedNew] = useState(false);
+  
+  const editorRef = useRef<Editor | null>(null);
 
-  const createNewNote = () => {
+  const createNewNote = async () => {
     const newNote: Note = {
-      id: Date.now().toString(),
+      id: `temp-${Date.now()}`,
       title: "Ghi chú mới",
-      content: "",
-      createdAt: new Date(),
+      content: "", // Bắt đầu với content rỗng
+      createdAt: new Date().toISOString(),
     };
-    setNotes([newNote, ...notes]);
+
+    setNotes(prev => [newNote, ...prev]);
     setSelectedNote(newNote);
     setIsEditing(true);
+    setIsSelectedNew(true);
   };
 
-  const deleteNote = (id: string) => {
-    setNotes(notes.filter(note => note.id !== id));
-    if (selectedNote?.id === id) {
-      setSelectedNote(null);
+  const deleteNote = async (id: string) => {
+    try {
+      if (id.startsWith("temp-")) {
+        setNotes(prev => prev.filter(note => note.id !== id));
+        if (selectedNote?.id === id) {
+          setSelectedNote(null);
+          setIsSelectedNew(false);
+          setIsEditing(false);
+        }
+        return;
+      }
+
+      await deleteNoteApi(id);
+      setNotes(prev => prev.filter(note => note.id !== id));
+      if (selectedNote?.id === id) {
+        setSelectedNote(null);
+        setIsEditing(false); // THAY ĐỔI: Tắt edit khi xóa note
+      }
+    } catch (error) {
+      console.error("Lỗi khi xóa note:", error);
     }
   };
 
-  const updateNote = (id: string, updates: Partial<Note>) => {
-    setNotes(notes.map(note => 
-      note.id === id ? { ...note, ...updates } : note
-    ));
-    if (selectedNote?.id === id) {
-      setSelectedNote({ ...selectedNote, ...updates });
+
+  const updateNoteOnApi = async (id: string, updates: Partial<Note>) => {
+    try {
+      const response = await addNoteApi({
+        ...notes.find(n => n.id === id)!,
+        ...updates,
+      });
+
+      const updatedNoteFromApi = response.data;
+
+      setNotes(prev =>
+        prev.map(note => (note.id === id ? updatedNoteFromApi : note))
+      );
+      
+      setSelectedNote(updatedNoteFromApi);
+
+    } catch (error) {
+      console.error("Lỗi update note:", error);
     }
   };
 
-  const filteredNotes = notes.filter(note =>
-    note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    note.content.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleToggleEdit = async () => {
+    if (isEditing) {
+      if (!selectedNote) return;
+      
+      const content = editorRef.current?.getInstance().getMarkdown() || "";
+      const title = selectedNote.title; 
+
+      try {
+        if (isSelectedNew) {
+
+          const newNote = { ...selectedNote, title, content };
+
+        
+          await addNoteApi(newNote);
+          setIsSelectedNew(false);
+          await loadNotes(true); 
+          setSelectedNote(null); 
+        } else {
+          const updatedNote = { ...selectedNote, title, content };
+          setSelectedNote(updatedNote);
+          setNotes(prev => prev.map(n => n.id === updatedNote.id ? updatedNote : n));
+          
+          await updateNoteOnApi(selectedNote.id, { title, content });
+        }
+      } catch (error) {
+        console.error("Lỗi khi lưu note:", error);
+      } finally {
+        setIsEditing(false);
+      }
+    } else {
+      setIsEditing(true);
+      setTimeout(() => {
+        editorRef.current?.getInstance().focus();
+      }, 0);
+    }
+  };
+
+
+  const loadNotes = async (reset = false) => {
+    try {
+      const nextPage = reset ? 0 : page;
+      const data = await getNotesApi(nextPage, size, searchQuery);
+      console.log("Loaded notes:", data);
+      
+      const localTempNotes = notes.filter(n => n.id.startsWith("temp-"));
+      
+      if (reset) {
+        setNotes(data.content);
+        setPage(1);
+      } else {
+        setNotes(prev => [...prev, ...data.content]);
+        setPage(prev => prev + 1);
+      }
+
+      setHasMore(!data.last);
+    } catch (error) {
+      console.error("Lỗi load notes:", error);
+    }
+  };
+
+
+  useEffect(() => {
+    loadNotes(true);
+  }, []);
+
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      loadNotes(true);
+    }, 300);
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery]);
+
+  // THAY ĐỔI: Khi chọn note, nếu đang edit note mới (temp) mà chưa save
+  // thì nên xóa note temp đó đi.
+  const selectNoteHandler = (note: Note) => {
+    if (isSelectedNew) {
+      // Xóa note temp đang edit dở
+      setNotes(prev => prev.filter(n => !n.id.startsWith("temp-")));
+      setIsSelectedNew(false);
+    }
+    setSelectedNote(note);
+    setIsEditing(false); // Luôn về chế độ xem khi chọn note
+  }
 
   return (
     <MainLayout>
@@ -78,14 +191,23 @@ const Notes = () => {
               </Button>
             </div>
 
-            <div className="space-y-2 max-h-[calc(100vh-250px)] overflow-y-auto">
-              {filteredNotes.map((note) => (
+            <div className="space-y-2 max-h-[calc(100vh-250px)] overflow-y-auto"
+              onScroll={(e) => {
+                const bottom =
+                  e.currentTarget.scrollHeight - e.currentTarget.scrollTop <=
+                  e.currentTarget.clientHeight + 20;
+
+                if (bottom && hasMore) {
+                  loadNotes();
+                }
+              }}
+            >
+            
+              {notes.map((note) => (
                 <div
                   key={note.id}
-                  onClick={() => {
-                    setSelectedNote(note);
-                    setIsEditing(false);
-                  }}
+                  // THAY ĐỔI: Dùng handler riêng
+                  onClick={() => selectNoteHandler(note)}
                   className={`p-3 rounded-lg cursor-pointer transition-smooth hover:shadow-soft ${
                     selectedNote?.id === note.id ? 'bg-primary/10 border-2 border-primary' : 'bg-muted/50'
                   }`}
@@ -93,9 +215,7 @@ const Notes = () => {
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-sm truncate">{note.title}</h3>
-                      <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                        {note.content || "Ghi chú trống"}
-                      </p>
+                      {/* Dòng preview content đã bị xóa, giữ nguyên */}
                     </div>
                     <Button
                       size="icon"
@@ -110,8 +230,9 @@ const Notes = () => {
                     </Button>
                   </div>
                 </div>
+                
               ))}
-              {filteredNotes.length === 0 && (
+              {notes.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   <BookOpen className="w-12 h-12 mx-auto mb-2 opacity-50" />
                   <p className="text-sm">Chưa có ghi chú nào</p>
@@ -121,14 +242,16 @@ const Notes = () => {
           </Card>
 
           {/* Note Editor */}
-          <Card className="lg:col-span-2 p-6 shadow-soft">
+          <Card className="lg:col-span-2 p-6 shadow-soft min-h-[600px]">
             {selectedNote ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   {isEditing ? (
                     <Input
                       value={selectedNote.title}
-                      onChange={(e) => updateNote(selectedNote.id, { title: e.target.value })}
+                      onChange={(e) =>
+                        setSelectedNote(prev => prev ? { ...prev, title: e.target.value } : prev)
+                      }
                       className="text-2xl font-bold border-none p-0 h-auto"
                       placeholder="Tiêu đề ghi chú"
                     />
@@ -136,32 +259,43 @@ const Notes = () => {
                     <h2 className="text-2xl font-bold">{selectedNote.title}</h2>
                   )}
                   <Button
-                    onClick={() => setIsEditing(!isEditing)}
+                    onClick={handleToggleEdit}
                     variant="outline"
                     size="sm"
                   >
                     <Edit2 className="w-4 h-4 mr-2" />
-                    {isEditing ? "Xong" : "Chỉnh sửa"}
+                    {isEditing ? "Lưu" : "Chỉnh sửa"} {/* THAY ĐỔI: "Xong" -> "Lưu" */}
                   </Button>
                 </div>
 
+                {/* THAY ĐỔI: Logic render Editor / Viewer */}
                 {isEditing ? (
-                  <Textarea
-                    value={selectedNote.content}
-                    onChange={(e) => updateNote(selectedNote.id, { content: e.target.value })}
-                    placeholder="Viết ghi chú của bạn tại đây..."
-                    className="min-h-[500px] resize-none"
-                  />
+                  <div className="tui-editor-wrapper"> {/* Thêm wrapper nếu cần custom CSS */}
+                    <Editor
+                      // THAY ĐỔI: Thêm key để re-render khi chọn note
+                      key={selectedNote.id} 
+                      ref={editorRef}
+                      initialValue={selectedNote.content || ""}
+                      initialEditType="wysiwyg" // hoặc "markdown"
+                      previewStyle="vertical"
+                      height="500px" // Tăng chiều cao
+                      useCommandShortcut={true}
+                      // autoFocus={true} // Đã chuyển autoFocus vào handleToggleEdit
+                    />
+                  </div>
                 ) : (
+                  // Dùng Viewer khi không edit
                   <div className="prose max-w-none">
-                    <p className="whitespace-pre-wrap">
-                      {selectedNote.content || "Ghi chú trống. Nhấn 'Chỉnh sửa' để bắt đầu viết."}
-                    </p>
+                     <Viewer
+                      // THAY ĐỔI: Thêm key để re-render khi chọn note
+                      key={selectedNote.id}
+                      initialValue={selectedNote.content || "Ghi chú trống. Nhấn 'Chỉnh sửa' để bắt đầu viết."}
+                    />
                   </div>
                 )}
 
                 <div className="text-sm text-muted-foreground">
-                  Tạo lúc: {selectedNote.createdAt.toLocaleString('vi-VN')}
+                  Tạo lúc: {new Date(selectedNote.createdAt).toLocaleString('vi-VN')}
                 </div>
               </div>
             ) : (
