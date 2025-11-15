@@ -2,11 +2,14 @@ package hcmute.hackathon.vibecoders.service.impl;
 
 import hcmute.hackathon.vibecoders.dto.request.SignupRequestDto;
 import hcmute.hackathon.vibecoders.entity.User;
+import hcmute.hackathon.vibecoders.exception.CustomException;
 import hcmute.hackathon.vibecoders.repository.UserRepository;
 import hcmute.hackathon.vibecoders.service.IUserService;
 import hcmute.hackathon.vibecoders.util.Enum.Role;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -35,5 +38,11 @@ public class UserServiceImpl implements IUserService {
         String result = MessageFormat.format("Add {0}-{1} successfully", userModel.getId(), userModel.getRole().toString());
         log.info(result);
         return result;
+    }
+
+    public User getCurrentUser(){
+        User user = userRepository.findByEmail(SecurityContextHolder.getContext().getAuthentication().getName())
+                .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
+        return user;
     }
 }
