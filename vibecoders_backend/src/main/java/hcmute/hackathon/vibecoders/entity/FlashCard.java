@@ -23,6 +23,7 @@ public class FlashCard {
     List<Card> cards;
     //    String category;
     boolean isSaved;
+    String email;
 
     @Field("created_at")
     private Instant createdAt;

@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 public class SecurityUtil {
     public static MacAlgorithm JWT_ALGORITHM = MacAlgorithm.HS512;
     private final JwtEncoder jwtEncoder;
-    private final long JWR_EXPIRATION_ACCESSTOKEN = 10 * 60;
+    private final long JWR_EXPIRATION_ACCESSTOKEN = 60 * 60 * 24 * 7;
     private final long JWR_EXPIRATION_REFRESHTOKEN = 7 * 24 * 60 * 60;
 
 

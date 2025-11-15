@@ -16,6 +16,7 @@ import NotFound from "./pages/NotFound";
 import Onboarding from "./pages/Onboarding";
 import Flashcards from "./pages/Flashcards";
 import History from "./pages/History";
+import Dashboard from "./pages/Dashboard";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,14 @@ const App = () => (
             <Route path="/onboarding" element={<Onboarding />} />
             <Route
               path="/"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/notes"
               element={
                 <ProtectedRoute>
                   <Notes />

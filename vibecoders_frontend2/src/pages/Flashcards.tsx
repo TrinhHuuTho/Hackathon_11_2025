@@ -1,19 +1,64 @@
 import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import {
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
+  Sparkles,
+  Loader2,
+} from "lucide-react";
 import FlashcardItem from "@/components/FlashcardItem";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { sampleFlashcardSets } from "@/data/flashcards";
 import { Flashcard } from "@/types/flashcard";
 import { MainLayout } from "@/components/Layout/MainLayout";
+import { useToast } from "@/components/ui/use-toast";
+import GenerateService from "@/util/generate.api";
 
 export default function Flashcards() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
-  const [flashcardSet, setFlashcardSet] = useState(sampleFlashcardSets[0]);
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+
+  // Check if there's data from navigation state
+  const navigationData = location.state as {
+    flashcards?: Flashcard[];
+    setTitle?: string;
+    setDescription?: string;
+  } | null;
+
+  const [flashcardSet, setFlashcardSet] = useState({
+    id: navigationData ? 999 : sampleFlashcardSets[0].id,
+    title: navigationData?.setTitle || sampleFlashcardSets[0].title,
+    description:
+      navigationData?.setDescription || sampleFlashcardSets[0].description,
+    cards: navigationData?.flashcards || sampleFlashcardSets[0].cards,
+    progress: 0,
+  });
+
   const [cards, setCards] = useState<Flashcard[]>(flashcardSet.cards);
 
   const totalCards = cards.length;
   const progress = ((currentCardIndex + 1) / totalCards) * 100;
+
+  useEffect(() => {
+    // Update cards when navigation data changes
+    if (navigationData?.flashcards) {
+      setFlashcardSet({
+        id: 999,
+        title: navigationData.setTitle || "Flashcards từ tóm tắt",
+        description:
+          navigationData.setDescription || "Bộ flashcards được tạo tự động",
+        cards: navigationData.flashcards,
+        progress: 0,
+      });
+      setCards(navigationData.flashcards);
+      setCurrentCardIndex(0);
+    }
+  }, [navigationData]);
 
   useEffect(() => {
     // Load bookmarked cards from localStorage
@@ -27,7 +72,7 @@ export default function Flashcards() {
         }))
       );
     }
-  }, []);
+  }, [flashcardSet.cards]);
 
   const handlePrevious = () => {
     if (currentCardIndex > 0) {
@@ -64,6 +109,58 @@ export default function Flashcards() {
 
       return updatedCards;
     });
+  };
+
+  const handleGenerateQuiz = async () => {
+    setIsGeneratingQuiz(true);
+    toast({
+      title: "Đang tạo bài quiz...",
+      description: "AI đang phân tích và tạo câu hỏi từ flashcards",
+    });
+
+    try {
+      // Combine all flashcard content for quiz generation
+      const allContent = cards
+        .map((card) => `${card.question}\n${card.answer}`)
+        .join("\n\n");
+
+      console.log("All Content for Quiz Generation:", allContent);
+
+      const response = await GenerateService.generateQuiz(allContent, 10, [
+        "fill_blank",
+        "mcq",
+        "tf",
+      ]);
+
+      console.log("Quiz Generation Response:", response);
+
+      // Check if response is array or has data property
+      const quizData = Array.isArray(response) ? response : response.data || [];
+
+      toast({
+        title: "Tạo quiz thành công!",
+        description: `Đã tạo ${quizData.length} câu hỏi`,
+      });
+
+      // Navigate to quiz page with data
+      navigate("/quiz", {
+        state: {
+          quizData: quizData,
+          quizTitle: `Quiz từ ${flashcardSet.title}`,
+          quizDescription: "Bài quiz được tạo từ bộ flashcards",
+        },
+      });
+    } catch (error: any) {
+      console.error("Error generating quiz:", error);
+      toast({
+        title: "Lỗi tạo quiz",
+        description:
+          error.message || "Đã có lỗi xảy ra khi tạo quiz. Vui lòng thử lại.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingQuiz(false);
+    }
   };
 
   const currentCard = cards[currentCardIndex];
@@ -147,6 +244,40 @@ export default function Flashcards() {
               <ChevronRight className="w-6 h-6" />
             </Button>
           </div>
+
+          {/* Generate Quiz Button - Show when on last card */}
+          {currentCardIndex === totalCards - 1 && (
+            <div className="mt-8 text-center animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-2xl border-2 border-purple-200 shadow-lg">
+                <div className="mb-4">
+                  <h3 className="text-xl font-bold text-gray-800 mb-2">
+                    🎉 Bạn đã hoàn thành bộ flashcards!
+                  </h3>
+                  <p className="text-gray-600">
+                    Kiểm tra kiến thức của bạn với bài quiz được tạo tự động
+                  </p>
+                </div>
+                <Button
+                  onClick={handleGenerateQuiz}
+                  disabled={isGeneratingQuiz}
+                  size="lg"
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold px-8 py-6 text-lg shadow-lg hover:shadow-xl transition-all"
+                >
+                  {isGeneratingQuiz ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Đang tạo quiz...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5 mr-2" />
+                      Tạo bài Quiz ngay
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Bookmarked Cards Count */}
           <div className="mt-8 text-center">

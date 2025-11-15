@@ -1,3 +1,39 @@
+// Backend response types
+export interface FlashCard {
+  id: string;
+  type: string;
+  cards: Card[];
+  isSaved: boolean;
+  email: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Card {
+  front: string;
+  back: string;
+}
+
+export interface QuizSet {
+  id: string;
+  title: string;
+  questions: QuizQuestion[];
+}
+
+export interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctAnswer: string;
+}
+
+export interface QuizAnswerDto {
+  id: string;
+  quizSets: QuizSet;
+  userAnswers: string[];
+  email: string;
+}
+
+// Frontend display types (legacy)
 export interface FlashcardHistory {
   id: number;
   setTitle: string;

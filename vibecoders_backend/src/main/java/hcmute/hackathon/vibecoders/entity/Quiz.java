@@ -7,7 +7,6 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 import java.time.Instant;
-import java.time.OffsetDateTime;
 
 @Data
 @NoArgsConstructor
@@ -15,7 +14,7 @@ import java.time.OffsetDateTime;
 @Builder
 @Document(collection = "tests")
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class Test {
+public class Quiz {
     @Id
     String id;
     String question;
