@@ -5,8 +5,8 @@ import logging
 from typing import Optional
 from dotenv import load_dotenv
 
-from .schemas import GenerateRequest, Quiz, QuizQuestion
-from .llm_adapter import GeminiAdapter
+from schemas import GenerateRequest, Quiz, QuizQuestion
+from llm_adapter import GeminiAdapter
 
 # Load environment variables from .env file
 load_dotenv()

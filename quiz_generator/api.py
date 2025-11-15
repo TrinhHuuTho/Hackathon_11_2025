@@ -12,7 +12,7 @@ import logging
 import json
 from typing import Dict, Any
 
-from .tasks import generate_quiz_job
+from tasks import generate_quiz_job
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
