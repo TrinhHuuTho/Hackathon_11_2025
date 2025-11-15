@@ -12,7 +12,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 import uuid
 
-from fastapi import FastAPI, HTTPException, Query, Depends
+from fastapi import FastAPI, HTTPException, Query, Depends, Path
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
@@ -74,10 +74,16 @@ async def _process_chat_request(
         # Use provided conversation_id hoặc từ request
         effective_conversation_id = conversation_id or request.conversation_id
 
-        # Log request
+        # Log request với debug info
         log_query = (
             request.query[:50] + "..." if len(request.query) > 50 else request.query
         )
+        logger.info(f"=== CHAT REQUEST DEBUG ===")
+        logger.info(f"Query: {log_query}")
+        logger.info(f"Conversation ID: {effective_conversation_id}")
+        logger.info(f"Retrieval config: top_k={request.retrieval_config.top_k}")
+        logger.info(f"Chat config: temperature={request.chat_config.temperature}")
+
         if effective_conversation_id:
             logger.info(
                 f"Processing chat in conversation {effective_conversation_id[:8]}: {log_query}"
@@ -85,21 +91,26 @@ async def _process_chat_request(
         else:
             logger.info(f"Processing standalone chat: {log_query}")
 
-        # Process chat với chat engine
+        # Process chat với chat engine - KHÔNG modify request.conversation_id
         response = chat_engine.chat(request, effective_conversation_id)
 
-        # Log success
-        logger.info(f"Chat processed successfully in {response.processing_time:.2f}s")
+        # Log success với debug info
+        logger.info(f"=== CHAT RESPONSE DEBUG ===")
+        logger.info(f"Retrieved docs: {response.context.retrieved_count}")
+        logger.info(f"Context used: {response.context.context_used}")
+        logger.info(f"Processing time: {response.processing_time:.2f}s")
+        logger.info(f"Answer preview: {response.answer[:100]}...")
+
         return response
 
     except Exception as e:
-        # Log error
+        # Log error với full stack trace
         error_context = (
             f"conversation {conversation_id[:8]}"
             if conversation_id
             else "standalone chat"
         )
-        logger.error(f"Chat processing error in {error_context}: {e}")
+        logger.error(f"Chat processing error in {error_context}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Chat processing failed: {str(e)}")
 
 
@@ -158,17 +169,40 @@ async def health_check():
 
 
 # Chat endpoints
-@app.post("/chat", response_model=RAGChatResponse)
+@app.post(
+    "/chat",
+    response_model=RAGChatResponse,
+    summary="Chat with RAG System",
+    description="""
+          **Chat với RAG system cho logged-in users.**
+          
+          Features:
+          - Tự động tạo conversation ID để lưu lịch sử chat
+          - Retrieve documents liên quan từ knowledge base  
+          - Generate response sử dụng Gemini LLM
+          - Giống ChatGPT: mỗi chat tạo conversation mới
+          
+          **Example Request:**
+          ```json
+          {
+            "query": "Python là gì?",
+            "retrieval_config": {
+              "top_k": 5,
+              "similarity_threshold": 0.3
+            },
+            "chat_config": {
+              "temperature": 0.7,
+              "max_tokens": 500
+            }
+          }
+          ```
+          """,
+)
 async def chat_with_rag(
     request: RAGChatRequest,
     chat_engine: RAGChatEngine = Depends(get_chat_engine_instance),
 ):
-    """
-    Chat với RAG system cho logged-in users.
-
-    Luôn tạo conversation ID tự động để lưu conversation history.
-    Giống như ChatGPT - mỗi chat session sẽ có conversation riêng.
-    """
+    """Chat với RAG system cho logged-in users."""
     # Auto-generate conversation ID nếu chưa có
     if not request.conversation_id:
         request.conversation_id = str(uuid.uuid4())
@@ -182,25 +216,45 @@ async def chat_with_rag(
     )
 
 
-@app.post("/chat/quick")
+@app.post(
+    "/chat/quick",
+    summary="Quick Anonymous Chat",
+    description="""
+          **Quick chat cho anonymous users.**
+          
+          Features:  
+          - Không cần authentication
+          - Không lưu conversation history
+          - Simplified parameters via URL query
+          - Perfect cho testing và demo
+          
+          **Use Cases:**
+          - Users chưa đăng nhập
+          - One-time queries  
+          - API testing
+          - Public demos
+          
+          **Example:**
+          `POST /chat/quick?query=Python là gì&top_k=5&temperature=0.7`
+          """,
+)
 async def quick_chat(
-    query: str = Query(..., description="User question", min_length=1, max_length=2000),
+    query: str = Query(
+        ...,
+        description="Câu hỏi của user",
+        min_length=1,
+        max_length=2000,
+        example="Python là gì?",
+    ),
     top_k: int = Query(
-        default=5, description="Number of documents to retrieve", ge=1, le=20
+        default=5, description="Số lượng documents tìm kiếm", ge=1, le=20
     ),
     temperature: float = Query(
-        default=0.7, description="LLM temperature", ge=0.0, le=2.0
+        default=0.7, description="Độ sáng tạo của LLM (0.0-2.0)", ge=0.0, le=2.0
     ),
     chat_engine: RAGChatEngine = Depends(get_chat_engine_instance),
 ):
-    """
-    Quick chat cho anonymous users.
-
-    Không lưu conversation history, phù hợp cho:
-    - Users chưa đăng nhập
-    - One-time queries
-    - Testing/demo purposes
-    """
+    """Quick chat cho anonymous users."""
     try:
         # Create request với default values
         request = RAGChatRequest(
@@ -232,18 +286,35 @@ async def quick_chat(
 
 
 # Conversation management
-@app.post("/conversations/{conversation_id}/chat", response_model=RAGChatResponse)
+@app.post(
+    "/conversations/{conversation_id}/chat",
+    response_model=RAGChatResponse,
+    summary="Continue Conversation",
+    description="""
+          **Tiếp tục chat trong existing conversation.**
+          
+          Features:
+          - Sử dụng conversation ID từ URL path
+          - Giữ nguyên conversation context và history  
+          - Override conversation_id trong request body
+          - Tương tự như click vào conversation cũ trong ChatGPT
+          
+          **Example:**
+          `POST /conversations/447c35cc-a5f1-4a76-9306-9480ce9a574d/chat`
+          
+          **Request body tương tự /chat endpoint**
+          """,
+)
 async def chat_in_conversation(
-    conversation_id: str,
-    request: RAGChatRequest,
+    conversation_id: str = Path(
+        ...,
+        description="ID của conversation cần tiếp tục",
+        example="447c35cc-a5f1-4a76-9306-9480ce9a574d",
+    ),
+    request: RAGChatRequest = ...,
     chat_engine: RAGChatEngine = Depends(get_chat_engine_instance),
 ):
-    """
-    Tiếp tục chat trong existing conversation.
-
-    Endpoint này dùng để chat trong conversation đã có sẵn,
-    giữ nguyên context và history của conversation.
-    """
+    """Tiếp tục chat trong existing conversation."""
     # Override conversation_id từ path parameter để đảm bảo consistency
     request.conversation_id = conversation_id
 

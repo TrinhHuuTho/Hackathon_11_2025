@@ -60,10 +60,22 @@ class RAGChatEngine:
         start_time = datetime.now()
 
         try:
+            # Debug log
+            logger.info(f"=== CHAT ENGINE DEBUG ===")
+            logger.info(f"Query: '{request.query}'")
+            logger.info(f"Conversation ID: {conversation_id}")
+            logger.info(f"Retrieval config: {request.retrieval_config}")
+
             # 1. Retrieve relevant documents
             retrieved_docs = self.retriever.retrieve_documents(
                 query=request.query, config=request.retrieval_config
             )
+
+            logger.info(f"Retrieved {len(retrieved_docs)} documents")
+            for i, doc in enumerate(retrieved_docs):
+                logger.info(
+                    f"  Doc {i+1}: {doc.topic} (score: {doc.similarity_score:.3f})"
+                )
 
             # 2. Build context từ retrieved documents
             context = self._build_context(retrieved_docs, request.chat_config)

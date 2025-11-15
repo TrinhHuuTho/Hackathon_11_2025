@@ -30,13 +30,33 @@ class DocumentChunk(BaseModel):
 class RetrievalConfig(BaseModel):
     """Cấu hình cho document retrieval."""
 
-    top_k: int = Field(default=5, ge=1, le=20)
-    similarity_threshold: float = Field(default=0.3, ge=0.0, le=1.0)
-    chunk_size: int = Field(default=200, ge=50, le=1000)  # characters
-    chunk_overlap: int = Field(default=50, ge=0, le=200)
-    user_filter: Optional[str] = None  # Filter by user_id
-    topic_filter: Optional[str] = None  # Filter by topic
-    include_metadata: bool = True
+    top_k: int = Field(
+        default=5, ge=1, le=20, description="Number of documents to retrieve"
+    )
+    similarity_threshold: float = Field(
+        default=0.3, ge=0.0, le=1.0, description="Minimum similarity score"
+    )
+    chunk_size: int = Field(
+        default=200, ge=50, le=1000, description="Chunk size in characters"
+    )
+    chunk_overlap: int = Field(
+        default=50, ge=0, le=200, description="Overlap between chunks"
+    )
+    user_filter: Optional[str] = Field(default=None, description="Filter by user ID")
+    topic_filter: Optional[str] = Field(default=None, description="Filter by topic")
+    include_metadata: bool = Field(
+        default=True, description="Include document metadata"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "top_k": 5,
+                "similarity_threshold": 0.3,
+                "topic_filter": None,
+                "include_metadata": True,
+            }
+        }
 
 
 class ChatRequest(BaseModel):
@@ -86,19 +106,35 @@ class ChatConfig(BaseModel):
     """Configuration for chat generation."""
 
     temperature: float = Field(
-        default=0.7, ge=0.0, le=2.0, description="Creativity level"
+        default=0.7, ge=0.0, le=2.0, description="Creativity level (0.0-2.0)"
     )
-    top_p: float = Field(default=0.9, ge=0.0, le=1.0, description="Nucleus sampling")
+    top_p: float = Field(
+        default=0.9, ge=0.0, le=1.0, description="Nucleus sampling (0.0-1.0)"
+    )
     max_tokens: int = Field(
-        default=2048, ge=1, le=8192, description="Max response tokens"
+        default=2048, ge=1, le=8192, description="Maximum response tokens"
     )
     max_context_docs: int = Field(
-        default=5, ge=1, le=20, description="Max documents in context"
+        default=5, ge=1, le=20, description="Maximum documents in context"
     )
-    include_sources: bool = Field(default=True, description="Include source references")
+    include_sources: bool = Field(
+        default=True, description="Include source references in response"
+    )
     response_style: Optional[str] = Field(
-        default=None, description="Response style preference"
+        default=None, description="Response style preference (e.g., 'formal', 'casual')"
     )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "temperature": 0.7,
+                "top_p": 0.9,
+                "max_tokens": 500,
+                "max_context_docs": 5,
+                "include_sources": True,
+                "response_style": None,
+            }
+        }
 
 
 class ConversationContext(BaseModel):
@@ -136,12 +172,40 @@ class ConversationListResponse(BaseModel):
 class RAGChatRequest(BaseModel):
     """Enhanced chat request for RAG system."""
 
-    query: str = Field(..., min_length=1, max_length=2000, description="User question")
-    retrieval_config: RetrievalConfig = Field(default_factory=RetrievalConfig)
-    chat_config: ChatConfig = Field(default_factory=ChatConfig)
-    conversation_id: Optional[str] = Field(
-        default=None, description="Conversation ID for context"
+    query: str = Field(
+        ...,
+        min_length=1,
+        max_length=2000,
+        description="User question or message",
+        example="Python là gì?",
     )
+    retrieval_config: RetrievalConfig = Field(
+        default_factory=RetrievalConfig, description="Document retrieval configuration"
+    )
+    chat_config: ChatConfig = Field(
+        default_factory=ChatConfig, description="Chat generation configuration"
+    )
+    conversation_id: Optional[str] = Field(
+        default=None, description="Optional conversation ID for context", example=None
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "query": "Python là gì?",
+                "retrieval_config": {
+                    "top_k": 5,
+                    "similarity_threshold": 0.3,
+                    "topic_filter": None,
+                },
+                "chat_config": {
+                    "temperature": 0.7,
+                    "max_tokens": 500,
+                    "include_sources": True,
+                },
+                "conversation_id": None,
+            }
+        }
 
 
 class RAGChatResponse(BaseModel):
