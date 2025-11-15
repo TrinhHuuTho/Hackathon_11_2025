@@ -30,7 +30,7 @@ def generate_flashcards(data: Dict[str, Any]) -> str:
         prompt = _build_flashcard_prompt(request.sections, request.config)
 
         # Generate content using LLM with increased token limit
-        raw_response = llm.generate(prompt, max_tokens=2000, temperature=0.3)
+        raw_response = llm.generate(prompt, max_tokens=4096, temperature=0.3)
 
         logger.info(f"Raw LLM response: {raw_response}")
 

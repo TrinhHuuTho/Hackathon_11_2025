@@ -86,7 +86,7 @@ def generate_quiz_job(job_id: str, request_payload: dict) -> dict:
     try:
         if use_canned:
             os.environ["USE_CANNED_LLM"] = "1"
-        out_text = gemini.generate(prompt, max_tokens=512, model=model_name)
+        out_text = gemini.generate(prompt, max_tokens=4096, model=model_name)
     except Exception:
         logger.exception("LLM generation failed for job %s", job_id)
         # In real task, mark job as failed in DB
