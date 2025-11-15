@@ -191,20 +191,42 @@ class RAGChatRequest(BaseModel):
 
     class Config:
         json_schema_extra = {
-            "example": {
-                "query": "Python là gì?",
-                "retrieval_config": {
-                    "top_k": 5,
-                    "similarity_threshold": 0.3,
-                    "topic_filter": None,
+            "examples": [
+                {
+                    "summary": "New Chat (tạo conversation mới)",
+                    "description": "Không có conversation_id → Tạo conversation mới",
+                    "value": {
+                        "query": "Python là gì?",
+                        "retrieval_config": {
+                            "top_k": 5,
+                            "similarity_threshold": 0.3,
+                            "topic_filter": None,
+                        },
+                        "chat_config": {
+                            "temperature": 0.7,
+                            "max_tokens": 500,
+                            "include_sources": True,
+                        },
+                        "conversation_id": None,
+                    },
                 },
-                "chat_config": {
-                    "temperature": 0.7,
-                    "max_tokens": 500,
-                    "include_sources": True,
+                {
+                    "summary": "Continue Chat (tiếp tục conversation)",
+                    "description": "Có conversation_id → Tiếp tục conversation existing",
+                    "value": {
+                        "query": "Hãy giải thích thêm về syntax của Python",
+                        "retrieval_config": {
+                            "top_k": 5,
+                            "similarity_threshold": 0.3,
+                        },
+                        "chat_config": {
+                            "temperature": 0.7,
+                            "max_tokens": 500,
+                        },
+                        "conversation_id": "447c35cc-a5f1-4a76-9306-9480ce9a574d",
+                    },
                 },
-                "conversation_id": None,
-            }
+            ]
         }
 
 

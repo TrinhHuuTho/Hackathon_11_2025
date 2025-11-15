@@ -172,28 +172,37 @@ async def health_check():
 @app.post(
     "/chat",
     response_model=RAGChatResponse,
-    summary="Chat with RAG System",
+    summary="Smart Chat Endpoint",
     description="""
-          **Chat với RAG system cho logged-in users.**
+          **Unified chat endpoint với smart conversation handling.**
           
-          Features:
-          - Tự động tạo conversation ID để lưu lịch sử chat
-          - Retrieve documents liên quan từ knowledge base  
-          - Generate response sử dụng Gemini LLM
-          - Giống ChatGPT: mỗi chat tạo conversation mới
+          **Behavior:**
+          - **Nếu có conversation_id**: Tiếp tục conversation existing (như /conversations/{id}/chat)
+          - **Nếu không có conversation_id**: Tạo conversation mới (new chat)
           
-          **Example Request:**
+          **Features:**
+          - Auto-detect conversation mode
+          - Retrieve documents từ knowledge base  
+          - Generate response với Gemini LLM
+          - Flexible conversation management
+          
+          **Use Cases:**
+          1. **New Chat**: Không truyền conversation_id → Tạo mới
+          2. **Continue Chat**: Truyền conversation_id → Tiếp tục existing
+          
+          **Example - New Chat:**
           ```json
           {
             "query": "Python là gì?",
-            "retrieval_config": {
-              "top_k": 5,
-              "similarity_threshold": 0.3
-            },
-            "chat_config": {
-              "temperature": 0.7,
-              "max_tokens": 500
-            }
+            "conversation_id": null
+          }
+          ```
+          
+          **Example - Continue Chat:**
+          ```json
+          {
+            "query": "Giải thích thêm về syntax",
+            "conversation_id": "447c35cc-a5f1-4a76-9306-9480ce9a574d"
           }
           ```
           """,
@@ -202,11 +211,20 @@ async def chat_with_rag(
     request: RAGChatRequest,
     chat_engine: RAGChatEngine = Depends(get_chat_engine_instance),
 ):
-    """Chat với RAG system cho logged-in users."""
-    # Auto-generate conversation ID nếu chưa có
+    """Smart chat endpoint - auto-handle conversation creation và continuation."""
+
+    # Smart conversation handling
     if not request.conversation_id:
+        # Mode: New Chat - tạo conversation mới
         request.conversation_id = str(uuid.uuid4())
-        logger.info(f"Auto-generated conversation ID: {request.conversation_id}")
+        logger.info(
+            f"🆕 New Chat - Auto-generated conversation ID: {request.conversation_id}"
+        )
+    else:
+        # Mode: Continue Chat - sử dụng existing conversation
+        logger.info(
+            f"🔄 Continue Chat - Using existing conversation ID: {request.conversation_id[:8]}..."
+        )
 
     # Sử dụng shared logic
     return await _process_chat_request(
@@ -289,20 +307,23 @@ async def quick_chat(
 @app.post(
     "/conversations/{conversation_id}/chat",
     response_model=RAGChatResponse,
-    summary="Continue Conversation",
+    summary="Continue Conversation (Legacy)",
     description="""
-          **Tiếp tục chat trong existing conversation.**
+          **[LEGACY] Tiếp tục chat trong existing conversation.**
           
-          Features:
-          - Sử dụng conversation ID từ URL path
-          - Giữ nguyên conversation context và history  
-          - Override conversation_id trong request body
-          - Tương tự như click vào conversation cũ trong ChatGPT
+          **⚠️ Note**: Endpoint này giờ có thể được thay thế bằng `/chat` với conversation_id trong body.
+          
+          **Differences với /chat:**
+          - **URL Path**: Conversation ID trong URL thay vì request body
+          - **Override**: Luôn override conversation_id từ URL
+          - **Legacy Support**: Maintain backward compatibility
+          
+          **Recommended**: Sử dụng `/chat` endpoint với conversation_id trong body.
           
           **Example:**
-          `POST /conversations/447c35cc-a5f1-4a76-9306-9480ce9a574d/chat`
-          
-          **Request body tương tự /chat endpoint**
+          ```
+          POST /conversations/447c35cc-a5f1-4a76-9306-9480ce9a574d/chat
+          ```
           """,
 )
 async def chat_in_conversation(
@@ -314,9 +335,13 @@ async def chat_in_conversation(
     request: RAGChatRequest = ...,
     chat_engine: RAGChatEngine = Depends(get_chat_engine_instance),
 ):
-    """Tiếp tục chat trong existing conversation."""
+    """[LEGACY] Tiếp tục chat trong existing conversation."""
     # Override conversation_id từ path parameter để đảm bảo consistency
     request.conversation_id = conversation_id
+
+    logger.info(
+        f"🔄 Legacy endpoint - Using conversation ID from URL: {conversation_id[:8]}..."
+    )
 
     # Sử dụng shared logic
     return await _process_chat_request(
