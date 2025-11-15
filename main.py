@@ -19,26 +19,41 @@ API_KEY = os.getenv("GEMINI_API_KEY")
 @app.post("/image_ocr")
 async def ocr_endpoint(file: UploadFile = File(...)):
     """
-    Endpoint OCR tài liệu từ ảnh.
-    Nhận: JPG/PNG
-    Trả về: Chuỗi văn bản OCR
+    Endpoint OCR tài liệu từ ảnh hoặc PDF.
+    Nhận: PNG / JPG / PDF
+    Trả về: Chuỗi văn bản OCR đầy đủ
     """
 
-    if file.content_type not in ["image/png", "image/jpeg"]:
-        raise HTTPException(status_code=400, detail="File phải là PNG hoặc JPG")
+    # ---- 1. Kiểm tra loại file hợp lệ ----
+    allowed_types = ["image/png", "image/jpeg", "application/pdf"]
 
-    image_bytes = await file.read()
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail="File chỉ hỗ trợ PNG, JPG hoặc PDF"
+        )
+
+    # ---- 2. Đọc bytes ----
+    file_bytes = await file.read()
 
     try:
+        # ---- 3. Gọi hàm OCR ----
         text = extract_information(
-            image_bytes=image_bytes,
+            file_bytes=file_bytes,
             mime_type=file.content_type,
             api_key=API_KEY
         )
-        return {"text": text}
+
+        # ---- 4. Trả về kết quả ----
+        return {
+            "filename": file.filename,
+            "mime_type": file.content_type,
+            "text": text
+        }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/summarize")
 async def summarize_endpoint(text: str):

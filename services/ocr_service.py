@@ -1,13 +1,17 @@
 # services/ocr_service.py
 import google.genai as genai
 from google.genai import types
+from pdf2image import convert_from_bytes
 
-def extract_information(image_bytes: bytes, mime_type: str, api_key: str):
+def extract_information(file_bytes: bytes, mime_type: str, api_key: str):
     """
-    Hàm OCR sử dụng Gemini 2.5 Flash.
-    - Trích xuất toàn bộ nội dung văn bản trong ảnh
-    - Không tóm tắt, không thêm/bớt nội dung
-    - Xử lý tốt tài liệu học thuật, bảng biểu, công thức
+    Hàm OCR hỗ trợ:
+    - Ảnh (image/png, image/jpeg, image/webp)
+    - PDF nhiều trang (application/pdf)
+
+    Logic:
+    - Nếu là PDF → chuyển từng trang thành ảnh → OCR theo thứ tự từng trang
+    - Nếu là ảnh → OCR trực tiếp
     """
 
     # ---- 1. Khởi tạo client ----
@@ -186,18 +190,47 @@ def extract_information(image_bytes: bytes, mime_type: str, api_key: str):
     """
 
 
+    # ===================================================
+    #  CASE 1: Nếu file là PDF → convert từng trang sang ảnh
+    # ===================================================
+    if mime_type == "application/pdf":
+        pages = convert_from_bytes(file_bytes)
 
-    # ---- 3. Gửi ảnh vào model ----
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=[
-            prompt,
-            types.Part.from_bytes(
-                data=image_bytes,
-                mime_type=mime_type
+        ocr_results = []
+
+        for idx, page_img in enumerate(pages, start=1):
+            # Convert PIL Image → bytes
+            img_bytes = page_img.tobytes("jpeg", "RGB")
+
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[
+                    f"Đây là trang số {idx} của PDF.\n" + prompt,
+                    types.Part.from_bytes(
+                        data=img_bytes,
+                        mime_type="image/jpeg"
+                    )
+                ]
             )
-        ]
-    )
 
-    # ---- 5. Trả về văn bản OCR ----
-    return response.text
+            ocr_results.append(f"===== TRANG {idx} =====\n" + response.text)
+
+        # Ghép tất cả trang lại
+        return "\n\n".join(ocr_results)
+
+
+    # ===================================================
+    #  CASE 2: Nếu file là ảnh → xử lý như bình thường
+    # ===================================================
+    else:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[
+                prompt,
+                types.Part.from_bytes(
+                    data=file_bytes,
+                    mime_type=mime_type
+                )
+            ]
+        )
+        return response.text
