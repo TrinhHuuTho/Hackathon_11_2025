@@ -2,16 +2,19 @@
 import google.genai as genai
 from google.genai import types
 from pdf2image import convert_from_bytes
+from PIL import Image
+import io
 
-def extract_information(file_bytes: bytes, mime_type: str, api_key: str):
+def extract_information(files_bytes_list, mime_types, api_key):
     """
     Hàm OCR hỗ trợ:
     - Ảnh (image/png, image/jpeg, image/webp)
     - PDF nhiều trang (application/pdf)
 
-    Logic:
-    - Nếu là PDF → chuyển từng trang thành ảnh → OCR theo thứ tự từng trang
-    - Nếu là ảnh → OCR trực tiếp
+    Cách hoạt động:
+    - Nếu là PDF → convert tất cả trang → gom list ảnh
+    - Nếu là ảnh → gom thành list 1 ảnh
+    - Sau đó gửi toàn bộ list ảnh vào 1 request duy nhất
     """
 
     # ---- 1. Khởi tạo client ----
@@ -122,115 +125,115 @@ def extract_information(file_bytes: bytes, mime_type: str, api_key: str):
     prompt = """
     Bạn là Gemini, một mô hình chuyên dụng cho Trích Xuất Tài Liệu Học Thuật từ hình ảnh.
 
-    Nhiệm vụ duy nhất của bạn là đọc và ghi lại *chính xác 100% nội dung xuất hiện trong ảnh*,
-    không thêm, không bớt, không suy diễn.
+    Bạn sẽ nhận vào **một hoặc nhiều ảnh**.  
+    Các ảnh có thể:
+    - là các trang liên tiếp của một tài liệu,
+    - là các phần có liên quan cùng chủ đề,
+    - hoặc hoàn toàn không liên quan.
 
     ========================================
-    NỘI DUNG BẠN PHẢI TRÍCH XUẤT
+    NHIỆM VỤ CHÍNH
     ========================================
-    Bạn phải OCR đầy đủ mọi thành phần trong ảnh, bao gồm:
-    - Văn bản (mọi thể loại)
-    - Bảng biểu
-    - Công thức toán học / vật lý / hóa học
-    - Hình minh họa, sơ đồ, biểu đồ, đồ thị
-    - Chú thích, ghi chú, tiêu đề, mục lục
+    Bạn phải OCR và ghi lại **100% nội dung** xuất hiện trong ảnh, theo đúng thứ tự ảnh được cung cấp.
+
+    Quan trọng:
+    - Nếu các ảnh **có nội dung liên quan hoặc nối tiếp nhau**, hãy trích xuất thành **một đoạn liền mạch**, không chèn dấu hiệu ngăn cách.
+    - Nếu các ảnh **không liên quan**, bạn phải phân tách nội dung bằng format:
+
+    === ẢNH SỐ X ===  
+    <nội dung OCR của ảnh X>
+
+    Tuyệt đối không được tự suy đoán mối liên hệ giữa các ảnh nếu trong nội dung không có bằng chứng.
+
+    ========================================
+    CÁCH XÁC ĐỊNH ẢNH CÓ LIÊN QUAN HAY KHÔNG
+    ========================================
+    Chỉ coi ảnh là **liên quan / nối tiếp** nếu trong nội dung có bằng chứng rõ ràng:
+    - số trang tăng dần (ví dụ: Trang 12 → Trang 13)
+    - đề mục liên tục (ví dụ: 2.1 → 2.2 → 2.3)
+    - đoạn văn bị ngắt và tiếp tục ở ảnh sau
+    - bảng, công thức hoặc sơ đồ bị chia đôi
+    - văn bản tham chiếu (“tiếp theo”, “xem hình 3.2”, “phần dưới đây”)
+    - có thể coi 2 ảnh là liên quan nếu cùng nói về một chủ đề (ví dụ: cùng nói về Định luật Newton, cùng phân tích Biểu đồ Cân bằng Thị trường…)
+
+    Nếu KHÔNG có bằng chứng rõ ràng → coi như hai ảnh **không liên quan** và PHẢI phân tách bằng format “=== ẢNH SỐ X ===”.
+
+    ========================================
+    NỘI DUNG CẦN TRÍCH XUẤT
+    ========================================
+    Trong mỗi ảnh, phải ghi chính xác:
+    - Văn bản (tiêu đề, đoạn văn, chú thích, mục lục, ghi chú lề…)
+    - Bảng biểu (mô tả bằng lời, không dựng lại bảng)
+    - Công thức toán / lý / hoá (giữ nguyên hình thức)
+    - Sơ đồ, biểu đồ, đồ thị (mô tả đầy đủ)
     - Ví dụ, bài tập, đề bài, lời giải
-    - Ký hiệu đặc biệt, ký tự toán, số liệu
-    - Mọi phần tử khác, dù nhỏ hoặc rời rạc
+    - Ký hiệu đặc biệt, số liệu, đơn vị
+    - Bất kỳ nội dung nhỏ hoặc rời rạc nào khác
 
     ========================================
     QUY TẮC BẮT BUỘC
     ========================================
     1. KHÔNG tóm tắt.
-    2. KHÔNG thêm bất kỳ thông tin mới nào.
-    3. KHÔNG suy luận hoặc diễn giải.
-    4. KHÔNG bỏ sót bất kỳ chữ, ký tự, dấu, đơn vị, số liệu nào.
-    5. Không cần viết lại cho trôi chảy – chỉ cần chính xác.
-    6. Thứ tự OCR: từ trên xuống dưới, trái sang phải.
-
-    ========================================
-    QUY TẮC XỬ LÝ CÁC THÀNH PHẦN ĐẶC BIỆT
-    ========================================
-    **A. Công thức toán học**
-    - Ghi lại *y nguyên* đúng dạng mắt thường thấy trong ảnh.
-    - KHÔNG chuyển sang LaTeX.
-    - KHÔNG chuẩn hóa, không cải thiện cú pháp.
-    - Ví dụ:
-    - Nếu ảnh có:  x^2 + y² = r² → ghi chính xác x^2 + y² = r²
-    - Nếu ảnh có:  ∫(0→1) f(x) dx → ghi đúng ∫(0→1) f(x) dx
-    - Nếu mũ, phân số, căn bậc hai bị lệch → ghi đúng như OCR nhận được.
-
-    **B. Bảng biểu**
-    - Không dựng lại bảng.
-    - Hãy mô tả theo dạng:
-    “Bảng có X hàng Y cột.  
-    Dòng 1: ô 1 = ..., ô 2 = ..., ô 3 = ...  
-    Dòng 2: ...”
-    - Ghi chính xác toàn bộ số liệu và ký hiệu.
-
-    **C. Biểu đồ / đồ thị / hình minh họa**
-    - Mô tả bằng lời tất cả những gì nhìn thấy: tiêu đề, trục, nhãn, số liệu, đường biểu diễn, chú thích…
-
-    **D. Hình hoặc text có liên kết**
-    - Nếu văn bản nhắc tới bảng/hình → mô tả sao cho thể hiện được mối liên kết đó.
-
-    **E. Nếu mờ hoặc không đọc được**
-    - Viết đúng những gì nhìn thấy (ví dụ: “(chữ mờ, không đọc được)”).
-    - Không đoán.
+    2. KHÔNG thêm nội dung mới.
+    3. KHÔNG suy luận hoặc dự đoán nội dung bị thiếu.
+    4. KHÔNG bỏ sót bất kỳ chữ, ký hiệu hoặc đơn vị nào.
+    5. Trong từng ảnh: đọc từ trên xuống dưới, trái sang phải.
+    6. Nếu chữ mờ hoặc không đọc được → ghi đúng những gì thấy (ví dụ: “(mờ, không đọc được)”).
+    7. Chỉ phân tách ảnh bằng “=== ẢNH SỐ X ===” nếu và chỉ nếu nội dung không liên quan.
 
     ========================================
     MỤC TIÊU CUỐI
     ========================================
-    Tạo ra một bản OCR đầy đủ 100%,
-    theo đúng thứ tự xuất hiện,
-    trung thực tuyệt đối với ảnh gốc,
-    không thêm – không bớt – không suy luận.
+    Tạo ra một bản OCR:
+    - chính xác tuyệt đối,
+    - đầy đủ 100%,
+    - liền mạch khi ảnh liên quan,
+    - được phân tách rõ ràng khi ảnh không liên quan,
+    - trung thực với nội dung gốc, không thêm – không bớt – không suy luận.
 
-    Hãy bắt đầu OCR nội dung từ hình ảnh được cung cấp.
+    Hãy bắt đầu trích xuất ngay bây giờ.
     """
 
 
-    # ===================================================
-    #  CASE 1: Nếu file là PDF → convert từng trang sang ảnh
-    # ===================================================
-    if mime_type == "application/pdf":
-        pages = convert_from_bytes(file_bytes)
+    # ─────────────────────────────────────────────
+    # 1) Gom toàn bộ ảnh từ tất cả đầu vào
+    # ─────────────────────────────────────────────
+    images = []   # danh sách kiểu bytes
 
-        ocr_results = []
+    for file_bytes, mime in zip(files_bytes_list, mime_types):
 
-        for idx, page_img in enumerate(pages, start=1):
-            # Convert PIL Image → bytes
-            img_bytes = page_img.tobytes("jpeg", "RGB")
+        # Nếu là PDF → convert từng trang → thêm vào images
+        if mime == "application/pdf":
+            pages = convert_from_bytes(file_bytes)
+            for page in pages:
+                buffer = io.BytesIO()
+                page.save(buffer, format="JPEG")
+                images.append(buffer.getvalue())
 
-            response = client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=[
-                    f"Đây là trang số {idx} của PDF.\n" + prompt,
-                    types.Part.from_bytes(
-                        data=img_bytes,
-                        mime_type="image/jpeg"
-                    )
-                ]
+        # Nếu là ảnh → thêm trực tiếp
+        else:
+            images.append(file_bytes)
+
+    # ─────────────────────────────────────────────
+    # 3) Build contents
+    # ─────────────────────────────────────────────
+    contents = [prompt]
+
+    for idx, img_bytes in enumerate(images, start=1):
+        contents.append(f"=== ẢNH SỐ {idx} ===")
+        contents.append(
+            types.Part.from_bytes(
+                data=img_bytes,
+                mime_type="image/jpeg"
             )
-
-            ocr_results.append(f"===== TRANG {idx} =====\n" + response.text)
-
-        # Ghép tất cả trang lại
-        return "\n\n".join(ocr_results)
-
-
-    # ===================================================
-    #  CASE 2: Nếu file là ảnh → xử lý như bình thường
-    # ===================================================
-    else:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=[
-                prompt,
-                types.Part.from_bytes(
-                    data=file_bytes,
-                    mime_type=mime_type
-                )
-            ]
         )
-        return response.text
+
+    # ─────────────────────────────────────────────
+    # 4) Gửi request 1 lần duy nhất
+    # ─────────────────────────────────────────────
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=contents,
+    )
+
+    return response.text

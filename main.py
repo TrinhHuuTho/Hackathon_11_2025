@@ -5,7 +5,9 @@ from services.ocr_service import extract_information
 from services.summaries_service import Summaries_Knowledge
 from services.recommend_study_event import RecommendStudyEvent
 from models.recommend_study_model import RecommendRequest
+from fastapi.concurrency import run_in_threadpool
 import uvicorn
+from typing import List
 import os
 
 from dotenv import load_dotenv
@@ -16,43 +18,54 @@ load_dotenv()
 
 API_KEY = os.getenv("GEMINI_API_KEY")
 
+from typing import List
+from fastapi import UploadFile, File, HTTPException
+from fastapi.concurrency import run_in_threadpool
+
 @app.post("/image_ocr")
-async def ocr_endpoint(file: UploadFile = File(...)):
+async def ocr_endpoint(files: List[UploadFile] = File(...)):
     """
-    Endpoint OCR tài liệu từ ảnh hoặc PDF.
-    Nhận: PNG / JPG / PDF
-    Trả về: Chuỗi văn bản OCR đầy đủ
+    OCR nhiều ảnh hoặc PDF cùng lúc.
+    Gộp toàn bộ nội dung vào 1 request → giảm thời gian & chi phí.
     """
 
-    # ---- 1. Kiểm tra loại file hợp lệ ----
     allowed_types = ["image/png", "image/jpeg", "application/pdf"]
 
-    if file.content_type not in allowed_types:
-        raise HTTPException(
-            status_code=400,
-            detail="File chỉ hỗ trợ PNG, JPG hoặc PDF"
-        )
+    # 1. Validate
+    for f in files:
+        if f.content_type not in allowed_types:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File {f.filename} không hỗ trợ. Chỉ hỗ trợ PNG, JPG, PDF"
+            )
 
-    # ---- 2. Đọc bytes ----
-    file_bytes = await file.read()
+    # 2. Đọc toàn bộ bytes
+    file_bytes_list = []
+    mime_types = []
+
+    for f in files:
+        content = await f.read()
+        file_bytes_list.append(content)
+        mime_types.append(f.content_type)
 
     try:
-        # ---- 3. Gọi hàm OCR ----
-        text = extract_information(
-            file_bytes=file_bytes,
-            mime_type=file.content_type,
-            api_key=API_KEY
+        # 3. Gọi batch OCR
+        text = await run_in_threadpool(
+            extract_information,
+            file_bytes_list,
+            mime_types,
+            API_KEY
         )
 
-        # ---- 4. Trả về kết quả ----
         return {
-            "filename": file.filename,
-            "mime_type": file.content_type,
+            "total_files": len(files),
+            "files": [f.filename for f in files],
             "text": text
         }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @app.post("/summarize")
