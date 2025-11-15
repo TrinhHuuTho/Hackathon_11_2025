@@ -5,6 +5,7 @@ from services.ocr_service import extract_information
 from services.summaries_service import Summaries_Knowledge
 from services.recommend_study_event import RecommendStudyEvent
 from models.recommend_study_model import RecommendRequest
+from models.summary_model import SummaryRequestModel
 from fastapi.concurrency import run_in_threadpool
 import uvicorn
 from typing import List
@@ -30,6 +31,8 @@ async def ocr_endpoint(files: List[UploadFile] = File(...)):
     """
 
     allowed_types = ["image/png", "image/jpeg", "application/pdf"]
+
+    print(f"types: {[f.content_type for f in files]}")
 
     # 1. Validate
     for f in files:
@@ -69,7 +72,7 @@ async def ocr_endpoint(files: List[UploadFile] = File(...)):
 
 
 @app.post("/summarize")
-async def summarize_endpoint(text: str):
+async def summarize_endpoint(request: SummaryRequestModel):
     """
     Endpoint tóm tắt văn bản.
     Nhận: Chuỗi văn bản
@@ -77,7 +80,7 @@ async def summarize_endpoint(text: str):
     """
 
     try:
-        summary = Summaries_Knowledge(ocr_text=text, api_key=API_KEY)
+        summary = Summaries_Knowledge(ocr_text=request.text, api_key=API_KEY)
         return {"summary": summary}
 
     except Exception as e:
