@@ -23,29 +23,9 @@ public class ChatBotService {
     public ChatResponseDTO getChatBotResponse(UserChatRequest userRequest) {
         Jwt principal = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String email = principal.getClaim("sub").toString();
-        RetrievalConfig retrievalConfig = RetrievalConfig.builder()
-                .topK(5)
-                .similarityThreshold(0.3)
-                .chunkSize(200)
-                .chunkOverlap(50)
-                .userFilter(email)
-                .topicFilter("string")
-                .includeMetadata(true)
-                .build();
-
-        ChatConfig chatConfig = ChatConfig.builder()
-                .temperature(0.7)
-                .topP(0.9)
-                .maxTokens(2048)
-                .maxContextDocs(5)
-                .includeSources(true)
-                .responseStyle("string")
-                .build();
 
         PythonChatRequest pythonRequest = PythonChatRequest.builder()
                 .query(userRequest.getQuery())
-                .retrievalConfig(retrievalConfig)
-                .chatConfig(chatConfig)
                 .conversationId(userRequest.getConversationId() != null ? userRequest.getConversationId() : "")
                 .build();
 

@@ -8,10 +8,6 @@ import lombok.Data;
 @Builder
 public class PythonChatRequest {
     private String query;
-    @JsonProperty("retrieval_config")
-    private RetrievalConfig retrievalConfig;
-    @JsonProperty("chat_config")
-    private ChatConfig chatConfig;
     @JsonProperty("conversation_id")
     private String conversationId;
 }

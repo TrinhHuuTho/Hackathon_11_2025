@@ -5,7 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { Avatar } from "@/components/ui/avatar";
-import { postChatMessage, ApiChatResponse } from "@/util/chat.api"; 
+import { postChatMessage, ApiChatResponse } from "@/util/chat.api";
+import { Viewer } from "@toast-ui/react-editor";
+import "@toast-ui/editor/dist/toastui-editor-viewer.css"; 
 
 interface Message {
   id: string;
@@ -56,7 +58,7 @@ const Chat = () => {
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: response.answer, // Sử dụng câu trả lời từ API
+        content: (response.answer).replace("[Programming]", ""), // Sử dụng câu trả lời từ API
         timestamp: new Date(),
       };
 
@@ -110,7 +112,18 @@ const Chat = () => {
                       : "bg-muted"
                   }`}
                 >
-                  <p className="text-sm leading-relaxed">{message.content}</p>
+                  <div className={`tui-viewer-wrapper text-sm leading-relaxed ${
+                    message.role === "user" ? "[&_*]:text-white" : ""
+                  }`}>
+                    {message.role === "assistant" ? (
+                      <Viewer
+                        key={message.id}
+                        initialValue={message.content || ""}
+                      />
+                    ) : (
+                      <p className="text-white">{message.content}</p>
+                    )}
+                  </div>
                   <span className="text-xs opacity-70 mt-1 block">
                     {message.timestamp.toLocaleTimeString("vi-VN", {
                       hour: "2-digit",
