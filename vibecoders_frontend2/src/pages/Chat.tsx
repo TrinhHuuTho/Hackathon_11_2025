@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { Avatar } from "@/components/ui/avatar";
+import { postChatMessage, ApiChatResponse } from "@/util/chat.api"; 
 
 interface Message {
   id: string;
@@ -24,8 +25,9 @@ const Chat = () => {
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
 
     const userMessage: Message = {
@@ -36,22 +38,48 @@ const Chat = () => {
     };
 
     setMessages([...messages, userMessage]);
+    
+    const currentInput = input;
     setInput("");
     setIsTyping(true);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      // TODO: Thay thế "user@example.com" bằng thông tin người dùng đã đăng nhập
+      const userEmail = "user@example.com"; 
+
+      const response: ApiChatResponse = await postChatMessage( // Thêm kiểu dữ liệu cho response
+        currentInput,
+        userEmail,
+        conversationId
+      );
+
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: "Đây là câu trả lời mẫu từ AI. Trong phiên bản thực tế, tôi sẽ kết nối với API AI để trả lời câu hỏi của bạn một cách thông minh và hữu ích hơn.",
+        content: response.answer, // Sử dụng câu trả lời từ API
         timestamp: new Date(),
       };
+
       setMessages((prev) => [...prev, aiMessage]);
+      
+      // --- CẬP NHẬT: Dùng đúng tên trường JSON ---
+      setConversationId(response.conversation_id); 
+
+    } catch (error) {
+      console.error("Lỗi khi gửi tin nhắn:", error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: "Xin lỗi, tôi đã gặp lỗi. Vui lòng thử lại sau.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
+  // ... (Phần return JSX giữ nguyên y hệt)
   return (
     <MainLayout>
       <div className="max-w-4xl mx-auto h-[calc(100vh-8rem)] flex flex-col">
@@ -122,10 +150,11 @@ const Chat = () => {
                 onKeyPress={(e) => e.key === "Enter" && handleSend()}
                 placeholder="Hỏi bất cứ điều gì..."
                 className="flex-1"
+                disabled={isTyping} 
               />
               <Button
                 onClick={handleSend}
-                disabled={!input.trim() || isTyping}
+                disabled={!input.trim() || isTyping} 
                 className="bg-gradient-primary"
                 size="icon"
               >
