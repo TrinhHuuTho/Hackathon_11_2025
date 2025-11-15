@@ -59,6 +59,50 @@ _chat_engine: Optional[RAGChatEngine] = None
 _retriever: Optional[DocumentRetriever] = None
 
 
+# Shared logic functions
+async def _process_chat_request(
+    request: RAGChatRequest,
+    conversation_id: Optional[str] = None,
+    chat_engine: RAGChatEngine = None,
+) -> RAGChatResponse:
+    """
+    Shared logic function cho tất cả chat processing.
+
+    Centralized chat processing logic để tránh code duplication.
+    """
+    try:
+        # Use provided conversation_id hoặc từ request
+        effective_conversation_id = conversation_id or request.conversation_id
+
+        # Log request
+        log_query = (
+            request.query[:50] + "..." if len(request.query) > 50 else request.query
+        )
+        if effective_conversation_id:
+            logger.info(
+                f"Processing chat in conversation {effective_conversation_id[:8]}: {log_query}"
+            )
+        else:
+            logger.info(f"Processing standalone chat: {log_query}")
+
+        # Process chat với chat engine
+        response = chat_engine.chat(request, effective_conversation_id)
+
+        # Log success
+        logger.info(f"Chat processed successfully in {response.processing_time:.2f}s")
+        return response
+
+    except Exception as e:
+        # Log error
+        error_context = (
+            f"conversation {conversation_id[:8]}"
+            if conversation_id
+            else "standalone chat"
+        )
+        logger.error(f"Chat processing error in {error_context}: {e}")
+        raise HTTPException(status_code=500, detail=f"Chat processing failed: {str(e)}")
+
+
 # Dependency functions
 def get_retriever_instance() -> DocumentRetriever:
     """Get document retriever instance."""
@@ -120,22 +164,22 @@ async def chat_with_rag(
     chat_engine: RAGChatEngine = Depends(get_chat_engine_instance),
 ):
     """
-    Chat với RAG system.
+    Chat với RAG system cho logged-in users.
 
-    Process user query sử dụng document retrieval và LLM generation.
+    Luôn tạo conversation ID tự động để lưu conversation history.
+    Giống như ChatGPT - mỗi chat session sẽ có conversation riêng.
     """
-    try:
-        logger.info(f"Processing chat request: {request.query[:50]}...")
+    # Auto-generate conversation ID nếu chưa có
+    if not request.conversation_id:
+        request.conversation_id = str(uuid.uuid4())
+        logger.info(f"Auto-generated conversation ID: {request.conversation_id}")
 
-        # Process chat
-        response = chat_engine.chat(request, request.conversation_id)
-
-        logger.info(f"Chat processed successfully in {response.processing_time:.2f}s")
-        return response
-
-    except Exception as e:
-        logger.error(f"Chat processing error: {e}")
-        raise HTTPException(status_code=500, detail=f"Chat processing failed: {str(e)}")
+    # Sử dụng shared logic
+    return await _process_chat_request(
+        request=request,
+        conversation_id=request.conversation_id,
+        chat_engine=chat_engine,
+    )
 
 
 @app.post("/chat/quick")
@@ -150,9 +194,12 @@ async def quick_chat(
     chat_engine: RAGChatEngine = Depends(get_chat_engine_instance),
 ):
     """
-    Quick chat endpoint với simplified parameters.
+    Quick chat cho anonymous users.
 
-    Convenient endpoint cho simple queries không cần full configuration.
+    Không lưu conversation history, phù hợp cho:
+    - Users chưa đăng nhập
+    - One-time queries
+    - Testing/demo purposes
     """
     try:
         # Create request với default values
@@ -160,17 +207,23 @@ async def quick_chat(
             query=query,
             retrieval_config=RetrievalConfig(top_k=top_k),
             chat_config=ChatConfig(temperature=temperature),
-            conversation_id=None,  # No conversation context
+            conversation_id=None,  # Explicitly no conversation - anonymous chat
         )
 
-        response = chat_engine.chat(request)
+        # Sử dụng shared logic nhưng không conversation_id
+        response = await _process_chat_request(
+            request=request,
+            conversation_id=None,  # Anonymous - no conversation saving
+            chat_engine=chat_engine,
+        )
 
-        # Return simplified response
+        # Return simplified response cho anonymous users
         return {
             "answer": response.answer,
             "sources_count": response.context.retrieved_count,
             "processing_time": response.processing_time,
             "sources": response.context.sources[:3] if response.context.sources else [],
+            "conversation_id": None,  # Explicitly show no conversation saved
         }
 
     except Exception as e:
@@ -185,17 +238,19 @@ async def chat_in_conversation(
     request: RAGChatRequest,
     chat_engine: RAGChatEngine = Depends(get_chat_engine_instance),
 ):
-    """Chat trong existing conversation với context."""
-    try:
-        # Override conversation_id từ path parameter
-        request.conversation_id = conversation_id
+    """
+    Tiếp tục chat trong existing conversation.
 
-        response = chat_engine.chat(request, conversation_id)
-        return response
+    Endpoint này dùng để chat trong conversation đã có sẵn,
+    giữ nguyên context và history của conversation.
+    """
+    # Override conversation_id từ path parameter để đảm bảo consistency
+    request.conversation_id = conversation_id
 
-    except Exception as e:
-        logger.error(f"Conversation chat error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    # Sử dụng shared logic
+    return await _process_chat_request(
+        request=request, conversation_id=conversation_id, chat_engine=chat_engine
+    )
 
 
 @app.get("/conversations/{conversation_id}", response_model=ConversationHistory)
