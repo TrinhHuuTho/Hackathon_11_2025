@@ -66,6 +66,7 @@ public class WebSecurityConfig {
                 .cors(Customizer.withDefaults());
         return http.build();
     }
+
     @Bean
     public SecurityFilterChain protectedApi(HttpSecurity http) throws Exception {
         http

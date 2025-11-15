@@ -5,15 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { addNoteApi, deleteNoteApi, getNotesApi } from "@/util/note.api";
-import { Note } from "@/util/note.api"; 
-import { Editor, Viewer } from '@toast-ui/react-editor';
-import '@toast-ui/editor/dist/toastui-editor.css';
-import '@toast-ui/editor/dist/toastui-editor-viewer.css';
-import { Editor as EditorType } from '@toast-ui/editor';
+import { Note } from "@/util/note.api";
+import { Editor, Viewer } from "@toast-ui/react-editor";
+import "@toast-ui/editor/dist/toastui-editor.css";
+import "@toast-ui/editor/dist/toastui-editor-viewer.css";
 import { Checkbox } from "@/components/ui/checkbox";
-import { toast } from "@/components/ui/use-toast"; 
-
-
+import { toast } from "@/components/ui/use-toast";
 
 const Notes = () => {
   const [notes, setNotes] = useState<Note[]>([]);
@@ -24,7 +21,7 @@ const Notes = () => {
   const [size] = useState(10);
   const [hasMore, setHasMore] = useState(true);
   const [isSelectedNew, setIsSelectedNew] = useState(false);
-  
+
   // THAY ĐỔI: State cho checkbox addCalendar
   const [addCalendar, setAddCalendar] = useState(false);
 
@@ -42,7 +39,7 @@ const Notes = () => {
       addCalendar: false, // Mặc định là false khi tạo mới (trước khi người dùng tick)
     };
 
-    setNotes(prev => [newNote, ...prev]);
+    setNotes((prev) => [newNote, ...prev]);
     setSelectedNote(newNote);
     setIsEditing(true);
     setIsSelectedNew(true);
@@ -51,7 +48,7 @@ const Notes = () => {
   const deleteNote = async (id: string) => {
     try {
       if (id.startsWith("temp-")) {
-        setNotes(prev => prev.filter(note => note.id !== id));
+        setNotes((prev) => prev.filter((note) => note.id !== id));
         if (selectedNote?.id === id) {
           setSelectedNote(null);
           setIsSelectedNew(false);
@@ -61,7 +58,7 @@ const Notes = () => {
       }
 
       await deleteNoteApi(id);
-      setNotes(prev => prev.filter(note => note.id !== id));
+      setNotes((prev) => prev.filter((note) => note.id !== id));
       if (selectedNote?.id === id) {
         setSelectedNote(null);
         setIsEditing(false);
@@ -80,29 +77,27 @@ const Notes = () => {
     }
   };
 
-
   const updateNoteOnApi = async (id: string, updates: Partial<Note>) => {
     try {
-      const noteToUpdate = notes.find(n => n.id === id);
+      const noteToUpdate = notes.find((n) => n.id === id);
       if (!noteToUpdate) return;
 
       const response = await addNoteApi({
         ...noteToUpdate,
-        ...updates, 
+        ...updates,
       });
 
       const updatedNoteFromApi = response.data;
 
-      setNotes(prev =>
-        prev.map(note => (note.id === id ? updatedNoteFromApi : note))
+      setNotes((prev) =>
+        prev.map((note) => (note.id === id ? updatedNoteFromApi : note))
       );
-      
+
       setSelectedNote(updatedNoteFromApi);
       toast({
         title: "Đã cập nhật ghi chú",
         description: "Ghi chú của bạn đã được lưu thành công.",
       });
-
     } catch (error) {
       console.error("Lỗi update note:", error);
       toast({
@@ -116,35 +111,36 @@ const Notes = () => {
   const handleToggleEdit = async () => {
     if (isEditing) {
       if (!selectedNote) return;
-      
+
       const content = editorRef.current?.getInstance().getMarkdown() || "";
-      const title = selectedNote.title; 
+      const title = selectedNote.title;
 
       try {
         if (isSelectedNew) {
           // THAY ĐỔI: Gửi addCalendar khi tạo note mới
-          const newNoteToSave = { 
-            ...selectedNote, 
-            title, 
-            content, 
-            addCalendar: addCalendar // GỬI GIÁ TRỊ CHECKBOX
+          const newNoteToSave = {
+            ...selectedNote,
+            title,
+            content,
+            addCalendar: addCalendar, // GỬI GIÁ TRỊ CHECKBOX
           };
-console.log("Payload to addNoteApi:", newNoteToSave);
+          console.log("Payload to addNoteApi:", newNoteToSave);
           await addNoteApi(newNoteToSave);
           setIsSelectedNew(false);
           await loadNotes(true); // Tải lại toàn bộ để hiển thị note mới
           setSelectedNote(null); // Bỏ chọn note
           toast({
             title: "Đã tạo ghi chú",
-            description: addCalendar ? "Ghi chú đã được tạo và thêm vào lịch." : "Ghi chú đã được tạo.",
+            description: addCalendar
+              ? "Ghi chú đã được tạo và thêm vào lịch."
+              : "Ghi chú đã được tạo.",
           });
-
         } else {
           // THAY ĐỔI: Gửi addCalendar khi cập nhật note (nếu có thay đổi)
-          const updatedNoteData = { 
-            ...selectedNote, 
-            title, 
-            content, 
+          const updatedNoteData = {
+            ...selectedNote,
+            title,
+            content,
             // KHÔNG GỬI addCalendar ở đây nếu đây không phải note mới được tạo
             // Vì addCalendar chỉ có ý nghĩa khi tạo note ban đầu
             // Nếu bạn muốn cho phép thêm vào lịch khi EDIT note đã có,
@@ -152,8 +148,10 @@ console.log("Payload to addNoteApi:", newNoteToSave);
             // Hiện tại, addCalendar chỉ hoạt động khi tạo note mới.
           };
           setSelectedNote(updatedNoteData);
-          setNotes(prev => prev.map(n => n.id === updatedNoteData.id ? updatedNoteData : n));
-          
+          setNotes((prev) =>
+            prev.map((n) => (n.id === updatedNoteData.id ? updatedNoteData : n))
+          );
+
           await updateNoteOnApi(selectedNote.id, { title, content }); // Chỉ update title và content
         }
       } catch (error) {
@@ -166,7 +164,7 @@ console.log("Payload to addNoteApi:", newNoteToSave);
       } finally {
         setIsEditing(false);
         // THAY ĐỔI: Reset addCalendar sau khi lưu hoặc hủy chỉnh sửa
-        setAddCalendar(false); 
+        setAddCalendar(false);
       }
     } else {
       setIsEditing(true);
@@ -176,22 +174,21 @@ console.log("Payload to addNoteApi:", newNoteToSave);
     }
   };
 
-
   const loadNotes = async (reset = false) => {
     try {
       const nextPage = reset ? 0 : page;
       const data = await getNotesApi(nextPage, size, searchQuery);
       console.log("Loaded notes:", data);
-      
+
       if (reset) {
         // Lọc bỏ các ghi chú tạm thời trước khi tải lại toàn bộ
-        const nonTempNotes = notes.filter(n => !n.id.startsWith("temp-"));
+        const nonTempNotes = notes.filter((n) => !n.id.startsWith("temp-"));
         setNotes([...nonTempNotes, ...data.content]); // Giữ lại temp note nếu có
         setNotes(data.content);
         setPage(1);
       } else {
-        setNotes(prev => [...prev, ...data.content]);
-        setPage(prev => prev + 1);
+        setNotes((prev) => [...prev, ...data.content]);
+        setPage((prev) => prev + 1);
       }
 
       setHasMore(!data.last);
@@ -199,7 +196,6 @@ console.log("Payload to addNoteApi:", newNoteToSave);
       console.error("Lỗi load notes:", error);
     }
   };
-
 
   useEffect(() => {
     loadNotes(true);
@@ -217,13 +213,13 @@ console.log("Payload to addNoteApi:", newNoteToSave);
   const selectNoteHandler = (note: Note) => {
     if (isSelectedNew && selectedNote?.id.startsWith("temp-")) {
       // Xóa note temp đang edit dở nếu có
-      setNotes(prev => prev.filter(n => n.id !== selectedNote.id));
+      setNotes((prev) => prev.filter((n) => n.id !== selectedNote.id));
     }
     setSelectedNote(note);
     setIsEditing(false); // Luôn về chế độ xem khi chọn note
     setIsSelectedNew(false); // Đảm bảo không còn là note mới
     setAddCalendar(false); // Reset checkbox khi chọn note khác
-  }
+  };
 
   // THAY ĐỔI: Xử lý hiển thị checkbox chỉ khi đang tạo note mới
   const shouldShowAddCalendarCheckbox = isEditing && isSelectedNew;
@@ -346,7 +342,7 @@ console.log("Payload to addNoteApi:", newNoteToSave);
                             console.log(
                               "Checkbox changed. New addCalendar state:",
                               newCheckedState
-                            ); 
+                            );
                           }}
                         />
                         <label

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link,useLocation } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,51 +7,50 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { Sparkles, LogIn } from "lucide-react";
-import { toast } from 'sonner';
-import { ClipLoader } from 'react-spinners';
-
+import { toast } from "sonner";
+import { ClipLoader } from "react-spinners";
 
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const { login, isAuthenticated, isLoading } = useAuth(); 
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const { login, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = location.state?.from?.pathname || "/"; 
+  const from = location.state?.from?.pathname || "/";
 
   useEffect(() => {
-      if (isAuthenticated) {
-        navigate(from, { replace: true });
-      }
-    }, [isAuthenticated, navigate, from]);
+    if (isAuthenticated) {
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, from]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      toast.error('Vui lòng nhập đầy đủ thông tin');
+      toast.error("Vui lòng nhập đầy đủ thông tin");
       return;
     }
 
     try {
       await login(email, password);
-      toast.success('Đăng nhập thành công!');
+      toast.success("Đăng nhập thành công!");
     } catch (error: any) {
-      toast.error('Đăng nhập thất bại');
+      toast.error("Đăng nhập thất bại");
     }
   };
 
   if (isLoading) {
     return (
       <div
-          style={{
-            position: "fixed",
-            top: "50%",
-            left: "50%",
-            transform: "translate(-50%, -50%)",
-          }}
-        >
-         <ClipLoader size={50} color="#4F46E5" />
-        </div>
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+        }}
+      >
+        <ClipLoader size={50} color="#4F46E5" />
+      </div>
     );
   }
 
@@ -63,7 +62,9 @@ const Login = () => {
             <Sparkles className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-foreground">Đăng nhập</h1>
-          <p className="text-muted-foreground mt-2">Chào mừng bạn quay lại LearnAI</p>
+          <p className="text-muted-foreground mt-2">
+            Chào mừng bạn quay lại LearnAI
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -100,7 +101,10 @@ const Login = () => {
         <div className="mt-6 text-center">
           <p className="text-sm text-muted-foreground">
             Chưa có tài khoản?{" "}
-            <Link to="/register" className="text-primary hover:underline font-medium">
+            <Link
+              to="/register"
+              className="text-primary hover:underline font-medium"
+            >
               Đăng ký ngay
             </Link>
           </p>

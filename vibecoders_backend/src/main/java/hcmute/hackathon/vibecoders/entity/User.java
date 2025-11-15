@@ -10,6 +10,7 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -18,6 +19,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @Document(collection = "users")
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class User {
     @Id
     private String id;
@@ -27,52 +29,27 @@ public class User {
     private int age;
     private String password;
     private boolean isActive;
+    private boolean isOnboarding;
     private Role role;
 
-    private Profile profile;
-
-    @Field("current_plan_id")
-    @Indexed
-    private String currentPlanId;
+    List<String> summaries;
 
     @Field("created_at")
-    private OffsetDateTime createdAt;
+    private Instant createdAt;
 
     @Field("updated_at")
-    private OffsetDateTime updatedAt;
+    private Instant updatedAt;
+
+    private Personal personal;
 
     @Data
-    @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @FieldDefaults(level = AccessLevel.PRIVATE)
-    public static class Profile {
-        @Id
-        String id;
-        Double heightCm;
-        Double weightKg;
-
-        @Indexed
-        Double bmi;
-
-        String goal;
-        String healthCondition;
-
-        @Field("nutrition_preferences")
-        hcmute.hackathon.vibecoders.entity.Profile.NutritionPreferences nutritionPreferences;
-
-        @Data
-        @Builder
-        @NoArgsConstructor
-        @AllArgsConstructor
-        public static class NutritionPreferences {
-            private Boolean vegetarian; // Ăn chay (có thể ăn trứng, sữa nhưng không ăn thịt)
-            private Boolean vegan; // Thuần chay (không ăn bất kỳ sản phẩm nào từ động vật, kể cả trứng, sữa, mật ong, v.v.)
-            private Boolean pescatarian; // Ăn chay có cá (không ăn thịt đỏ, nhưng có thể ăn cá và hải sản)
-            private Boolean halal; // Ăn theo tiêu chuẩn Halal (tuân thủ quy tắc thực phẩm của đạo Hồi)
-            private Boolean kosher; // Ăn theo tiêu chuẩn Kosher (tuân thủ quy tắc thực phẩm của đạo Do Thái)
-            private List<String> allergies; // Danh sách các dị ứng thực phẩm, ví dụ ["peanut", "gluten"] — dị ứng với đậu phộng, gluten,...
-            private Double dailyBudget; // optional, VND or default currency
-        }
+    @Builder
+    public static class Personal {
+        Integer numberOfYears;
+        String major;
+        List<String> favoriteTopics;
+        List<String> personalTopics;
     }
 }

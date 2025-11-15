@@ -16,8 +16,8 @@ import java.util.List;
 @RequestMapping("/api/summary")
 @RequiredArgsConstructor
 public class SummaryController {
-//    @PostMapping("/tracker")
-//    public ResponseData<?> tracker(@RequestPart(value = "files", required = false) List<MultipartFile> files) throws IOException {
-//        return new ResponseData<>(HttpStatus.CREATED.value(), "Success", workoutTrackerService.tracker(files));
-//    }
+
+//    @PostMapping("/text")
+//    public ResponseData<?> saveTextSummary()
+
 }

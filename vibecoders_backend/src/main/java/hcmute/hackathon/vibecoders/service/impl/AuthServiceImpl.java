@@ -101,6 +101,8 @@ public class AuthServiceImpl implements IAuthService {
         String email = jwt.getClaim("email");
         User user = userRepository.findByEmail(email)
                 .orElseThrow(()->new CustomException("Cant Find User",HttpStatus.BAD_REQUEST));
-        return UserDto.builder().userId(user.getId()).userName(user.getFullName()).email(user.getEmail()).build();
+        return UserDto.builder().userId(user.getId()).userName(user.getFullName()).email(user.getEmail())
+                .onboarding(user.isOnboarding())
+                .build();
     }
 }

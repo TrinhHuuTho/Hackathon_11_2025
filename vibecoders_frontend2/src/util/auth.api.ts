@@ -11,16 +11,21 @@ interface LoginPayload {
 }
 
 export interface LoginResponse {
-  accessToken?: string; 
+  accessToken?: string;
   refreshToken?: string;
   userDto?: {
     userId: string;
     userName: string;
     email: string;
+    onboarding: boolean;
   };
 }
 
-const registerApi = async (fullName: string, email: string, password: string) => {
+const registerApi = async (
+  fullName: string,
+  email: string,
+  password: string
+) => {
   try {
     const URL_API = "/api/auth/signup";
 
@@ -33,8 +38,8 @@ const registerApi = async (fullName: string, email: string, password: string) =>
   }
 };
 
-const loginApi = async(email: string, password: string) => {
- try {
+const loginApi = async (email: string, password: string) => {
+  try {
     const URL_API = "/api/auth/login";
 
     const data: LoginPayload = { email, password };
@@ -43,7 +48,7 @@ const loginApi = async(email: string, password: string) => {
     return response.data;
   } catch (error: any) {
     throw error.response?.data || error;
-  } 
+  }
 };
 
 const refreshTokenApi = async () => {
@@ -67,14 +72,14 @@ const refreshTokenApi = async () => {
   }
 };
 
-const getProfileApi = async() => {
- try {
+const getProfileApi = async () => {
+  try {
     const URL_API = "/api/auth/profile";
     const response = await axios.get<any>(URL_API);
     return response.data;
   } catch (error: any) {
     throw error.response?.data || error;
-  } 
+  }
 };
 
-export { registerApi, loginApi,getProfileApi };
+export { registerApi, loginApi, getProfileApi };

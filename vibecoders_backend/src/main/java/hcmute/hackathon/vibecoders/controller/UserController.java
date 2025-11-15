@@ -1,24 +1,41 @@
 package hcmute.hackathon.vibecoders.controller;
 
+import hcmute.hackathon.vibecoders.dto.request.PersonalRequest;
 import hcmute.hackathon.vibecoders.dto.request.RegisterRequest;
+import hcmute.hackathon.vibecoders.dto.response.ResponseData;
+import hcmute.hackathon.vibecoders.entity.User;
+import hcmute.hackathon.vibecoders.exception.CustomException;
+import hcmute.hackathon.vibecoders.repository.UserRepository;
 import hcmute.hackathon.vibecoders.service.impl.UserServiceImpl;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/api/users")
 @RequiredArgsConstructor
 public class UserController {
     private final UserServiceImpl userService;
+    private final UserRepository userRepository;
 
-//    @PostMapping("/register")
-//    ApiResponse<?> register(@RequestBody RegisterRequest registerRequest) {
-//        return ApiResponse.builder()
-//                .data(userService.registerUser(registerRequest))
-//                .message("User registered successfully")
-//                .build();
-//    }
+    @PostMapping("/onboarding")
+    public ResponseData<?> onboardingUser(@RequestBody PersonalRequest request){
+        User.Personal personal = User.Personal.builder()
+                .numberOfYears(request.getNumberOfYears())
+                .major(request.getMajor())
+                .favoriteTopics(request.getFavoriteTopics())
+                .personalTopics(request.getInterestedTopics())
+                .build();
+
+        User user = userService.getCurrentUser();
+        user.setPersonal(personal);
+        user.setOnboarding(true);
+
+        var savedUser = userRepository.save(user);
+
+        return ResponseData.builder()
+                .data(Boolean.TRUE)
+                .build();
+
+    }
 }

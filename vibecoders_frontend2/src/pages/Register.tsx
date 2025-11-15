@@ -7,42 +7,42 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { Sparkles, UserPlus } from "lucide-react";
-import { toast } from 'sonner';
+import { toast } from "sonner";
 const Register = () => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const { signup, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/');
+      navigate("/");
     }
   }, [isAuthenticated, navigate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!name || !email || !password || !confirmPassword) {
-      toast.error('Vui lòng nhập đầy đủ thông tin');
+      toast.error("Vui lòng nhập đầy đủ thông tin");
       return;
     }
 
     if (password !== confirmPassword) {
-      toast.error('Mật khẩu xác nhận không khớp');
+      toast.error("Mật khẩu xác nhận không khớp");
       return;
     }
 
     if (password.length < 6) {
-      toast.error('Mật khẩu phải có ít nhất 6 ký tự');
+      toast.error("Mật khẩu phải có ít nhất 6 ký tự");
       return;
     }
 
     signup(name, email, password);
-    toast.success('Đăng ký thành công!');
-    navigate('/');
+    toast.success("Đăng ký thành công!");
+    navigate("/login");
   };
 
   return (
@@ -53,7 +53,9 @@ const Register = () => {
             <Sparkles className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-foreground">Đăng ký</h1>
-          <p className="text-muted-foreground mt-2">Tạo tài khoản LearnAI mới</p>
+          <p className="text-muted-foreground mt-2">
+            Tạo tài khoản LearnAI mới
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -114,7 +116,10 @@ const Register = () => {
         <div className="mt-6 text-center">
           <p className="text-sm text-muted-foreground">
             Đã có tài khoản?{" "}
-            <Link to="/login" className="text-primary hover:underline font-medium">
+            <Link
+              to="/login"
+              className="text-primary hover:underline font-medium"
+            >
               Đăng nhập
             </Link>
           </p>

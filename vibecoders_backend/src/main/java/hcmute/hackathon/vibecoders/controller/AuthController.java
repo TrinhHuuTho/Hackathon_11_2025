@@ -37,7 +37,6 @@ public class AuthController {
         }
     }
 
-
     @PostMapping("/refresh")
     public ResponseData<?> refreshToken(@RequestHeader("Authorization") String authHeader) {
         String newAccessToken = authService.createNewAccessToken(authHeader);
