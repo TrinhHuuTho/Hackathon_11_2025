@@ -11,17 +11,25 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class FlashCardRequest {
-    String id;
-    String email;
-    List<CardRequest> cardRequests;
+public class QuizRequestDto {
+    List<Section> sections;
+    Config config;
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    public static class CardRequest {
-        String front;
-        String back;
+    public static class Section{
+        String id;
+        String summary;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class Config {
+        int n_questions;
+        List<String> types;
     }
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Flashcard } from "@/types/flashcard";
 import { Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,11 @@ export default function FlashcardItem({
   onToggleBookmark,
 }: FlashcardItemProps) {
   const [isFlipped, setIsFlipped] = useState(false);
+
+  // Reset flip state when card changes
+  useEffect(() => {
+    setIsFlipped(false);
+  }, [card.id]);
 
   const handleFlip = () => {
     setIsFlipped(!isFlipped);

@@ -1,17 +1,32 @@
 import { useState } from "react";
-import { Upload, Sparkles, Save, Brain } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import {
+  Upload,
+  Sparkles,
+  Save,
+  Brain,
+  Loader2,
+  FileQuestion,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { MainLayout } from "@/components/Layout/MainLayout";
 import { useToast } from "@/components/ui/use-toast";
 
+import GenerateSerivce from "@/util/generate.api";
+
 const Summary = () => {
   const [file, setFile] = useState<File | null>(null);
+  const [ocrText, setOcrText] = useState("");
   const [summary, setSummary] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingFlashcards, setIsGeneratingFlashcards] = useState(false);
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];
@@ -26,42 +41,187 @@ const Summary = () => {
 
   const handleSummary = async () => {
     if (!file) return;
-    
+
     setIsLoading(true);
-    // Simulate AI summary
-    setTimeout(() => {
-      setSummary(`Tóm tắt nội dung từ file "${file.name}":\n\nĐây là một bản tóm tắt tự động được tạo bởi AI. Nội dung chính bao gồm:\n\n1. Các khái niệm chính\n2. Điểm quan trọng cần nhớ\n3. Kết luận và ứng dụng thực tế\n\nBạn có thể chỉnh sửa nội dung này theo ý muốn.`);
+
+    try {
+      // call API to get summary
+      const data = await GenerateSerivce.getSummaryText(file);
+      setSummary(data.summary);
       setIsLoading(false);
       setIsEditing(true);
+      setIsSaved(false); // Reset saved state when new summary is generated
       toast({
         title: "Tóm tắt hoàn tất",
         description: "AI đã tạo bản tóm tắt từ file của bạn",
       });
-    }, 2000);
+    } catch (error) {
+      setIsLoading(false);
+      toast({
+        title: "Lỗi tóm tắt",
+        description: "Đã có lỗi xảy ra khi tóm tắt tài liệu. Vui lòng thử lại.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleSave = () => {
-    toast({
-      title: "Đã lưu",
-      description: "Bản tóm tắt đã được lưu thành công",
-    });
-    setIsEditing(false);
+  const handleSave = async () => {
+    try {
+      await GenerateSerivce.saveSummaryText(summary);
+      toast({
+        title: "Đã lưu",
+        description: "Bản tóm tắt đã được lưu thành công",
+      });
+      setIsEditing(false);
+      setIsSaved(true); // Mark as saved
+    } catch (error) {
+      toast({
+        title: "Lỗi lưu",
+        description: "Đã có lỗi xảy ra khi lưu bản tóm tắt. Vui lòng thử lại.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleGenerateQuiz = () => {
+  const handleGenerateFlashcards = async () => {
+    if (!summary || summary.trim() === "") {
+      toast({
+        title: "Chưa có nội dung",
+        description: "Vui lòng tạo tóm tắt trước khi tạo flashcards",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isSaved) {
+      toast({
+        title: "Chưa lưu nội dung",
+        description: "Vui lòng lưu bản tóm tắt trước khi tạo flashcards",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGeneratingFlashcards(true);
     toast({
-      title: "Đang tạo câu hỏi...",
-      description: "AI đang tạo bài kiểm tra từ nội dung này",
+      title: "Đang tạo flashcards...",
+      description: "AI đang phân tích và tạo flashcards từ nội dung này",
     });
-    // Navigate to quiz page or generate quiz
+
+    try {
+      const response = await GenerateSerivce.generateFlashcards(summary, 10, [
+        "definition",
+        "question",
+      ]);
+      console.log("API response:", response);
+
+      const flashcards = response.map((card: any) => ({
+        id: card.id,
+        question: card.front,
+        answer: card.back,
+        category: card.category || "General",
+        isBookmarked: false,
+        type: card.type,
+        difficulty: card.difficulty,
+      }));
+      console.log("Generated flashcards:", flashcards);
+
+      toast({
+        title: "Tạo flashcards thành công!",
+        description: `Đã tạo ${flashcards.length} flashcards từ nội dung tóm tắt`,
+      });
+
+      // Navigate to flashcards page with data
+      navigate("/flashcards", {
+        state: {
+          flashcards: flashcards,
+          setTitle: file?.name || "Flashcards từ tóm tắt",
+          setDescription: "Bộ flashcards được tạo tự động từ tài liệu",
+        },
+      });
+    } catch (error: any) {
+      console.error("Error generating flashcards:", error);
+      toast({
+        title: "Lỗi tạo flashcards",
+        description:
+          error.message ||
+          "Đã có lỗi xảy ra khi tạo flashcards. Vui lòng thử lại.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingFlashcards(false);
+    }
+  };
+
+  const handleGenerateQuiz = async () => {
+    if (!summary || summary.trim() === "") {
+      toast({
+        title: "Chưa có nội dung",
+        description: "Vui lòng tạo tóm tắt trước khi tạo quiz",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isSaved) {
+      toast({
+        title: "Chưa lưu nội dung",
+        description: "Vui lòng lưu bản tóm tắt trước khi tạo quiz",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGeneratingQuiz(true);
+    toast({
+      title: "Đang tạo quiz...",
+      description: "AI đang phân tích và tạo câu hỏi từ nội dung này",
+    });
+
+    try {
+      const response = await GenerateSerivce.generateQuiz(summary, 10, [
+        "fill_blank",
+        "mcq",
+        "tf",
+      ]);
+      console.log("Quiz API response:", response);
+
+      toast({
+        title: "Tạo quiz thành công!",
+        description: `Đã tạo ${response.length} câu hỏi từ nội dung tóm tắt`,
+      });
+
+      // Navigate to quiz page with data
+      navigate("/quiz", {
+        state: {
+          quizData: response,
+          quizTitle: file?.name || "Quiz từ tóm tắt",
+          quizDescription: "Bài kiểm tra được tạo tự động từ tài liệu",
+        },
+      });
+    } catch (error: any) {
+      console.error("Error generating quiz:", error);
+      toast({
+        title: "Lỗi tạo quiz",
+        description:
+          error.message || "Đã có lỗi xảy ra khi tạo quiz. Vui lòng thử lại.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingQuiz(false);
+    }
   };
 
   return (
     <MainLayout>
       <div className="max-w-5xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">Tóm tắt tài liệu</h1>
-          <p className="text-muted-foreground">Tải lên tài liệu và để AI tóm tắt cho bạn</p>
+          <h1 className="text-4xl font-bold text-foreground mb-2">
+            Tóm tắt tài liệu
+          </h1>
+          <p className="text-muted-foreground">
+            Tải lên tài liệu và để AI tóm tắt cho bạn
+          </p>
         </div>
 
         <div className="grid gap-6">
@@ -82,7 +242,7 @@ const Summary = () => {
                     type="file"
                     className="hidden"
                     onChange={handleFileUpload}
-                    accept=".pdf,.doc,.docx,.txt"
+                    accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg"
                   />
                 </label>
               </div>
@@ -101,7 +261,7 @@ const Summary = () => {
                 ) : (
                   <>
                     <Sparkles className="w-5 h-5 mr-2" />
-                    Tóm tắt với AI
+                    Lấy nội dung từ tài liệu hoặc hình ảnh
                   </>
                 )}
               </Button>
@@ -116,14 +276,24 @@ const Summary = () => {
                   <h2 className="text-2xl font-bold">Nội dung tóm tắt</h2>
                   <div className="flex gap-2">
                     <Button
-                      onClick={() => setIsEditing(!isEditing)}
+                      onClick={() => {
+                        setIsEditing(!isEditing);
+                        // When switching to edit mode, mark as not saved
+                        if (!isEditing) {
+                          setIsSaved(false);
+                        }
+                      }}
                       variant="outline"
                       size="sm"
                     >
-                      {isEditing ? "Xem" : "Chỉnh sửa"}
+                      {isEditing ? "Hủy" : "Chỉnh sửa"}
                     </Button>
                     {isEditing && (
-                      <Button onClick={handleSave} size="sm" className="bg-accent">
+                      <Button
+                        onClick={handleSave}
+                        size="sm"
+                        className="bg-accent"
+                      >
                         <Save className="w-4 h-4 mr-2" />
                         Lưu
                       </Button>
@@ -143,14 +313,46 @@ const Summary = () => {
                   </div>
                 )}
 
-                <div className="pt-4 border-t">
+                <div className="pt-4 border-t space-y-3">
                   <Button
-                    onClick={handleGenerateQuiz}
+                    onClick={handleGenerateFlashcards}
                     className="w-full bg-secondary"
                     size="lg"
+                    disabled={isGeneratingFlashcards || !summary || !isSaved}
                   >
-                    <Brain className="w-5 h-5 mr-2" />
-                    Tạo câu hỏi kiểm tra
+                    {isGeneratingFlashcards ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Đang tạo flashcards...
+                      </>
+                    ) : (
+                      <>
+                        <Brain className="w-5 h-5 mr-2" />
+                        {!isSaved
+                          ? "Lưu tóm tắt trước khi tạo flashcard"
+                          : "Tạo flashcard cho phần tóm tắt này"}
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    onClick={handleGenerateQuiz}
+                    className="w-full bg-gradient-to-br from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                    size="lg"
+                    disabled={isGeneratingQuiz || !summary || !isSaved}
+                  >
+                    {isGeneratingQuiz ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Đang tạo quiz...
+                      </>
+                    ) : (
+                      <>
+                        <FileQuestion className="w-5 h-5 mr-2" />
+                        {!isSaved
+                          ? "Lưu tóm tắt trước khi tạo quiz"
+                          : "Tạo bài Quiz từ phần tóm tắt này"}
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>

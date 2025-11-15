@@ -17,10 +17,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Home,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 const navItems = [
-  { to: "/", icon: BookOpen, label: "Ghi chú" },
+  { to: "/", icon: Home, label: "Trang chủ" },
+  { to: "/notes", icon: BookOpen, label: "Ghi chú" },
   { to: "/summary", icon: FileText, label: "Tóm tắt" },
   { to: "/quiz", icon: Brain, label: "Kiểm tra" },
   { to: "/flashcards", icon: Library, label: "Flashcards" },
