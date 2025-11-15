@@ -16,7 +16,6 @@ instance.interceptors.request.use(
   }
 );
 
-
 instance.interceptors.response.use(
   function (response) {
     if (response && response.data) return response.data;
@@ -39,7 +38,7 @@ instance.interceptors.response.use(
           }
         );
 
-        const newAccessToken = newTokenResp.data;
+        const newAccessToken = newTokenResp.data.data;
 
         localStorage.setItem("access_token", newAccessToken);
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
@@ -53,6 +52,5 @@ instance.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
 
 export default instance;

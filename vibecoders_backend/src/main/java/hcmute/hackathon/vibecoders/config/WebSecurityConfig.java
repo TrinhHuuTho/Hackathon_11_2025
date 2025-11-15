@@ -34,6 +34,7 @@ public class WebSecurityConfig {
             "/api/auth/refresh",
             //Swagger
             "/swagger-ui/**",
+            "/swagger-ui.html/**",
             "/v3/api-docs/**",
             "/swagger-ui.html",
             "/webjars/**",
