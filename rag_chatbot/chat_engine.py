@@ -3,7 +3,7 @@ import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import json
-from retriever_optimized import OptimizedDocumentRetriever as DocumentRetriever
+from mongodb_retriever import MongoDBDocumentRetriever as DocumentRetriever
 from llm_adapter import GeminiChatAdapter
 from schemas import (
     RAGChatRequest,
