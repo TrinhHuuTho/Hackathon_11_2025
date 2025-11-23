@@ -1,17 +1,78 @@
-# Hackathon 11/2025
 
-Project repository cho Hackathon tháng 11 năm 2025.
+# Quick Quiz
 
-## 📁 Nội dung
+Dự án tham gia cuộc thi Hackathon 24h tại HCMUTE của nhóm với đề tài "Đại học thông minh - Nâng tầm giáo dục"
 
-- **`quiz_generator/`** - Hệ thống tạo câu hỏi trắc nghiệm tự động
 
-## 🚀 Cách sử dụng
+## Features
 
-Xem hướng dẫn chi tiết trong từng thư mục con:
+- Trích xuất tài liệu
+- Sinh tóm tắt 
+- Sinh flashcard
+- Sinh Quiz
+- Đánh giá, nhận xét và gợi ý cải thiện
+- Sổ ghi chứ trực tuyến
+- Thông báo nhắc nhở thời gian thực
+- Giao diện cá nhân hóa
 
-- [Quiz Generator](quiz_generator/README.md)
 
-## 📄 License
+## Demo
 
-MIT License - xem file [LICENSE](LICENSE) để biết chi tiết.
+Insert gif or link to demo
+
+
+## Installation
+
+Install my-project with npm
+
+```bash
+  npm install my-project
+  cd my-project
+```
+    
+## Tech Stack
+
+**Client:** React, TypeScript, TailwindCSS
+
+**Server:** Spingboot
+
+**Services:** Python, FastApi, Rag, LLM Api
+
+**Database:** MongoDb
+
+
+
+
+## Contributing
+
+Contributions are always welcome!
+
+See [Contributing.md](Contributing.md) for ways to get started.
+
+
+## Support
+
+For support, email fake@fake.com.
+
+
+## License
+
+This repo is under [MIT](LICENSE) license.
+
+
+<!-- ## Badges
+
+Add badges from somewhere like: [shields.io](https://shields.io/)
+
+[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
+[![GPLv3 License](https://img.shields.io/badge/License-GPL%20v3-yellow.svg)](https://opensource.org/licenses/)
+[![AGPL License](https://img.shields.io/badge/license-AGPL-blue.svg)](http://www.gnu.org/licenses/agpl-3.0) -->
+
+
+## Authors
+
+- [@Hieu-with-love](https://www.github.com/Hieu-with-love)
+- [@oSweetLove1643](https://www.github.com/SweetLove1643)
+- [@tphong0903](https://www.github.com/tphong0903)
+- [@TrinhHuuTho](https://www.github.com/TrinhHuuTho)
+
