@@ -23,6 +23,9 @@ import {
   Flame,
   Target,
   Award,
+  RotateCw,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
 import {
   recentQuizzes,
@@ -32,11 +35,15 @@ import {
   userProgress,
 } from "@/data/dashboard";
 import { cn } from "@/lib/utils";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import GenerateService from "@/util/generate.api";
+import { QuizAnswerDto } from "@/types/history";
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const [notPassedQuizzes, setNotPassedQuizzes] = useState<QuizAnswerDto[]>([]);
+  const [loadingQuizzes, setLoadingQuizzes] = useState(true);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -82,14 +89,59 @@ export default function Dashboard() {
     }
   };
 
+  const calculateQuizStats = (quiz: QuizAnswerDto) => {
+    if (!quiz.quizSets || !quiz.quizSets.questions || !quiz.userAnswers) {
+      return {
+        correctAnswers: 0,
+        totalQuestions: 0,
+        percentage: 0,
+        passed: false,
+      };
+    }
+
+    const totalQuestions = quiz.quizSets.questions.length;
+    let correctAnswers = 0;
+
+    quiz.quizSets.questions.forEach((question, index) => {
+      if (quiz.userAnswers[index] === question.answer) {
+        correctAnswers++;
+      }
+    });
+
+    const percentage = Math.round((correctAnswers / totalQuestions) * 100);
+    const passed = percentage >= 70;
+
+    return {
+      correctAnswers,
+      totalQuestions,
+      percentage,
+      passed,
+    };
+  };
+
   useEffect(() => {
     const onboarding = localStorage.getItem("onboarding");
 
     // Redirect if onboarding is not completed
     // Cases: null (not set), "false", or any value that's not "true"
-    if (!onboarding || onboarding === "false") {
-      navigate("/onboarding", { replace: true });
-    }
+    // if (!onboarding || onboarding === "false") {
+    //   navigate("/onboarding", { replace: true });
+    // }
+
+    // Load not passed quizzes
+    const loadNotPassedQuizzes = async () => {
+      try {
+        setLoadingQuizzes(true);
+        const data = await GenerateService.getNotPassedQuizzes();
+        setNotPassedQuizzes(data);
+      } catch (error) {
+        console.error("Error loading not passed quizzes:", error);
+      } finally {
+        setLoadingQuizzes(false);
+      }
+    };
+
+    loadNotPassedQuizzes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run only once on mount
 
@@ -194,75 +246,151 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Recent Quizzes */}
+        {/* Not Passed Quizzes - Main Section */}
         <section>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Trophy className="w-6 h-6 text-blue-600" />
+              <RotateCw className="w-6 h-6 text-red-600" />
               <h2 className="text-2xl font-bold text-gray-800">
-                Bài kiểm tra gần đây
+                Các bài kiểm tra chưa đạt được. Thử kiểm tra lại.
               </h2>
             </div>
-            <Button variant="ghost" className="gap-2">
+            <Button
+              variant="ghost"
+              className="gap-2"
+              onClick={() =>
+                navigate("/history", { state: { tab: "not-passed" } })
+              }
+            >
               Xem tất cả
               <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {recentQuizzes.map((quiz) => (
-              <Card
-                key={quiz.id}
-                className="hover:shadow-lg transition-all border-2"
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg mb-1">
-                        {quiz.title}
-                      </CardTitle>
-                      <CardDescription className="flex items-center gap-2">
-                        <Clock className="w-4 h-4" />
-                        {formatDate(quiz.completedAt)}
-                      </CardDescription>
-                    </div>
-                    {quiz.passed ? (
-                      <CheckCircle2 className="w-6 h-6 text-green-500" />
-                    ) : (
-                      <XCircle className="w-6 h-6 text-red-500" />
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Badge variant="outline">{quiz.subject}</Badge>
-                      <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold text-blue-600">
-                          {quiz.score}/{quiz.totalQuestions}
-                        </span>
-                        <span className="text-sm text-gray-600">
-                          (
-                          {Math.round((quiz.score / quiz.totalQuestions) * 100)}
-                          %)
-                        </span>
+          {loadingQuizzes ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+                <p className="text-gray-600">Đang tải bài kiểm tra...</p>
+              </div>
+            </div>
+          ) : notPassedQuizzes.length === 0 ? (
+            <Card className="border-2 border-green-100 bg-gradient-to-br from-green-50 to-white">
+              <CardContent className="py-12 text-center">
+                <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-gray-800 mb-2">
+                  🎉 Tuyệt vời! Bạn đã vượt qua tất cả các bài kiểm tra
+                </h3>
+                <p className="text-gray-600">
+                  Không có bài kiểm tra nào cần làm lại. Hãy tiếp tục phát huy!
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {notPassedQuizzes.map((quiz) => {
+                const stats = calculateQuizStats(quiz);
+                return (
+                  <Card
+                    key={quiz.id}
+                    className="hover:shadow-lg transition-all border-2 border-red-200 bg-gradient-to-br from-red-50 to-white"
+                  >
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <XCircle className="w-5 h-5 text-red-500" />
+                            <CardTitle className="text-lg">
+                              {quiz.quizSets?.title || "Bài Quiz"}
+                            </CardTitle>
+                          </div>
+                          <CardDescription className="flex items-center gap-2">
+                            <Clock className="w-4 h-4" />
+                            {stats.totalQuestions} câu hỏi
+                          </CardDescription>
+                        </div>
+                        <Badge className="bg-red-100 text-red-700 border-red-300">
+                          Chưa đạt - {stats.percentage}%
+                        </Badge>
                       </div>
-                    </div>
-                    <Progress
-                      value={(quiz.score / quiz.totalQuestions) * 100}
-                      className="h-2"
-                    />
-                    <div className="flex justify-end">
-                      <Button variant="ghost" size="sm" className="gap-2">
-                        Xem chi tiết
-                        <ArrowRight className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl font-bold text-red-600">
+                              {stats.correctAnswers}/{stats.totalQuestions}
+                            </span>
+                            <span className="text-sm text-gray-600">
+                              ({stats.percentage}%)
+                            </span>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xs text-gray-600">Cần đạt</div>
+                            <div className="text-sm font-semibold text-orange-600">
+                              70%
+                            </div>
+                          </div>
+                        </div>
+                        <Progress
+                          value={stats.percentage}
+                          className="h-2 bg-red-100"
+                        />
+                        <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+                          <div className="flex items-center justify-between text-sm">
+                            <div>
+                              <span className="text-red-700">Sai: </span>
+                              <span className="font-bold text-red-800">
+                                {stats.totalQuestions - stats.correctAnswers}{" "}
+                                câu
+                              </span>
+                            </div>
+                            <div className="text-orange-700 font-semibold">
+                              Thiếu {70 - stats.percentage}% để đạt
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 gap-2"
+                            onClick={() =>
+                              navigate("/history", {
+                                state: { tab: "not-passed" },
+                              })
+                            }
+                          >
+                            Chi tiết
+                            <ArrowRight className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="flex-1 gap-2 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white"
+                            onClick={() => {
+                              navigate("/quiz", {
+                                state: {
+                                  quizData: quiz.quizSets.questions,
+                                  quizTitle:
+                                    quiz.quizSets?.title || "Làm lại Quiz",
+                                  quizDescription:
+                                    "Làm lại để cải thiện kết quả",
+                                  isRetake: true,
+                                },
+                              });
+                            }}
+                          >
+                            <RotateCw className="w-4 h-4" />
+                            Làm lại
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         {/* Popular Theories */}

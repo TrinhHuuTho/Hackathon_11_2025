@@ -1,5 +1,6 @@
 package hcmute.hackathon.vibecoders.service.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import hcmute.hackathon.vibecoders.dto.request.PythonAnalysisRequest;
 import hcmute.hackathon.vibecoders.dto.request.WHNoteRequestDTO;
@@ -14,6 +15,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -35,7 +37,7 @@ public class WHNoteService {
     private final WebClient webClient;
     private final EventRepository eventRepository;
     private final ObjectMapper objectMapper;
-    public WHNote addNote(WHNoteRequestDTO requestDTO){
+    public WHNote addNote(WHNoteRequestDTO requestDTO) throws JsonProcessingException {
         Jwt principal = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String email = principal.getClaim("sub").toString();
         WHNote model ;
@@ -82,7 +84,7 @@ public class WHNoteService {
     }
 
     @Async
-    public void callPythonAnalysis(WHNote newNote){
+    public void callPythonAnalysis(WHNote newNote) throws JsonProcessingException {
         String userEmail = newNote.getEmail();
         YearMonth currentYearMonth = YearMonth.now();
         LocalDateTime startOfMonth = currentYearMonth.atDay(1).atStartOfDay();
@@ -97,10 +99,12 @@ public class WHNoteService {
                 .allEventsInMonth(eventsInMonth)
                 .build();
 
-        String pythonUrl = "http:/localhost:8000/api/notes/analyze";
-
+        String pythonUrl = "http://localhost:8000/api/notes/analyze";
+        String jsonBody = objectMapper.writeValueAsString(requestBody);
+        System.out.println("Request JSON: " + jsonBody);
         webClient.post()
                 .uri(pythonUrl)
+                .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(String.class)

@@ -19,4 +19,5 @@ public class QuizAnswerDto {
     QuizSet quizSets;
     List<String> userAnswers;
     String email;
+    boolean passed;
 }

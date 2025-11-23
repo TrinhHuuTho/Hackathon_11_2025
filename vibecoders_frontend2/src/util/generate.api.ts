@@ -142,6 +142,15 @@ const saveQuizAnswer = async (quizAnswerData: any) => {
   }
 };
 
+const getNotPassedQuizzes = async () => {
+  try {
+    const response = await axios.get(`${API_QUIZ_URL}/notPassed`);
+    return response.data;
+  } catch (error: any) {
+    throw error.response?.data || error;
+  }
+};
+
 export default {
   getSummaryText,
   generateFlashcards,
@@ -150,4 +159,5 @@ export default {
   saveQuizAnswer,
   saveCardToReview,
   getCardsToReview,
+  getNotPassedQuizzes,
 };

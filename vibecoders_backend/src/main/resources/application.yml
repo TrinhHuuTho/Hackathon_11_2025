@@ -14,6 +14,12 @@ spring:
     mongodb:
       uri: mongodb+srv://${MONGO_DB_USERNAME}:${MONGO_DB_PASSWORD}@hackathon.n5sib2v.mongodb.net/hackathon?retryWrites=true&w=majority&appName=Hackathon
       auto-index-creation: true
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 500MB        # Kích thước tối đa cho 1 file
+      max-request-size: 500MB     # Tổng kích thước request
+      file-size-threshold: 5MB    # Ngưỡng lưu file tạm
 
 springdoc:
   api-docs:

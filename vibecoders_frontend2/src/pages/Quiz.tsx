@@ -182,7 +182,7 @@ const Quiz = () => {
           questions: questions,
         },
         userAnswers: questions.map((q) => answers[q.id] || ""),
-        email: user?.email || "",
+        passed: correctCount >= questions.length * 0.5,
       };
 
       console.log("Quiz Answer Data to be saved:", quizAnswerData);

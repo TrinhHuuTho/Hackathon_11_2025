@@ -1,5 +1,6 @@
 package hcmute.hackathon.vibecoders.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import hcmute.hackathon.vibecoders.dto.request.SignupRequestDto;
 import hcmute.hackathon.vibecoders.dto.request.WHNoteRequestDTO;
 import hcmute.hackathon.vibecoders.dto.response.ResponseData;
@@ -15,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 public class WHNoteController {
     private final WHNoteService whNoteService;
     @PostMapping()
-    public ResponseData<?> addNote(@Valid @RequestBody WHNoteRequestDTO dto) {
+    public ResponseData<?> addNote(@Valid @RequestBody WHNoteRequestDTO dto) throws JsonProcessingException {
         return new ResponseData<>(HttpStatus.CREATED.value(),"Success", whNoteService.addNote(dto));
     }
 

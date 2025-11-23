@@ -331,7 +331,7 @@ const Notes = () => {
                     </h2>
                   )}
                   <div className="flex items-center space-x-2">
-                    {shouldShowAddCalendarCheckbox && (
+                    {/* {shouldShowAddCalendarCheckbox && (
                       <>
                         <Checkbox
                           id="addCalendar"
@@ -352,7 +352,7 @@ const Notes = () => {
                           Thêm vào lịch học
                         </label>
                       </>
-                    )}
+                    )} */}
                     <Button
                       onClick={handleToggleEdit}
                       variant="outline"

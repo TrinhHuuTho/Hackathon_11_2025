@@ -13,10 +13,7 @@ import hcmute.hackathon.vibecoders.service.impl.UserServiceImpl;
 import hcmute.hackathon.vibecoders.util.PythonUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.reactive.function.client.WebClient;
 
 @RestController
@@ -27,6 +24,13 @@ public class QuizController {
     private final QuizRepository quizRepository;
     private final QuizAnswerDtoRepo quizAnswerDtoRepo;
     private final UserServiceImpl userService;
+
+    @GetMapping("/notPassed")
+    public ResponseData<?> getQuizNotPassed(){
+        return ResponseData.success(quizAnswerDtoRepo.findByEmail(userService.getCurrentUser().getEmail())
+                .stream()
+                .filter(quizAnswerDto -> !quizAnswerDto.isPassed()));
+    }
 
     @PostMapping("/save")
     public ResponseData<?> saveQuizAndAnswer(@RequestBody @Valid QuizAnswerDto requestDto) {

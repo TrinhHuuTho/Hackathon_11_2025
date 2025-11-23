@@ -22,5 +22,5 @@ export interface QuizAnswerDto {
   id?: string;
   quizSets: QuizSet;
   userAnswers: string[];
-  email: string;
+  passed: boolean;
 }

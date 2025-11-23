@@ -18,6 +18,12 @@ public class JavaCallPythonController {
     private final WebClient webClient = WebClient.builder().build();
 
     private final static String PYTHON_SERVICE_URL = "http://127.0.0.1:8000";
+    private final static String RAG_SERVICE_URL = "http://127.0.0.1:8006";
+
+
+    public void updateVectorDB() {
+
+    }
 
     @GetMapping("/summarize")
     public Mono<Map<String,String>> getSummaryText() {
